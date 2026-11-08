@@ -26,15 +26,25 @@ except ImportError:
     AstrBotConfig = dict
 
 from .utils import (
-    PLUGIN_NAME, PLUGIN_VERSION, CONFIG_VERSION, DEFAULT_CONFIG,
-    IS_WINDOWS, IS_LINUX,
+    PLUGIN_NAME,
+    PLUGIN_VERSION,
+    CONFIG_VERSION,
+    DEFAULT_CONFIG,
+    IS_WINDOWS,
+    IS_LINUX,
     _mask_token,
-    _encrypt_secret, _decrypt_secret,
-    _detect_distro_family, detect_docker_binary,
-    resolve_deploy_mode, resolve_persistent_dir,
-    get_linux_qq_version, get_linux_qq_build_code,
-    is_linux_qq_version_compatible, is_qq_installed,
-    NAPCAT_SUPPORTED_QQ_MIN, NAPCAT_SUPPORTED_QQ_MAX,
+    _encrypt_secret,
+    _decrypt_secret,
+    _detect_distro_family,
+    detect_docker_binary,
+    resolve_deploy_mode,
+    resolve_persistent_dir,
+    get_linux_qq_version,
+    get_linux_qq_build_code,
+    is_linux_qq_version_compatible,
+    is_qq_installed,
+    NAPCAT_SUPPORTED_QQ_MIN,
+    NAPCAT_SUPPORTED_QQ_MAX,
     RECOMMENDED_LINUXQQ_VERSION,
     NAPCAT_MIRROR_CANDIDATES,
 )
@@ -42,7 +52,7 @@ from .napcat_manager import NapCatManager
 from .config_syncer import ConfigSyncer
 from . import linux_tools
 
-PLUGIN_CODE_VERSION = "2026-11-01-v750"
+PLUGIN_CODE_VERSION = "2026-11-08-v751"
 
 
 class NapCatGoPlugin(Star):
@@ -50,7 +60,9 @@ class NapCatGoPlugin(Star):
         super().__init__(context)
         self.astrbot_config = config
 
-        logger.info(f"[NapCat Go] ============ CODE VERSION: {PLUGIN_CODE_VERSION} ============")
+        logger.info(
+            f"[NapCat Go] ============ CODE VERSION: {PLUGIN_CODE_VERSION} ============"
+        )
 
         self.persistent_dir = resolve_persistent_dir(context)
         logger.info(f"[NapCat Go] persistent dir: {self.persistent_dir}")
@@ -84,28 +96,68 @@ class NapCatGoPlugin(Star):
                     logger.error(f"register_web_api failed route={route}: {e}")
 
         _reg(f"/{PLUGIN_NAME}/status", self.api_status, ["GET"], "Get status")
-        _reg(f"/{PLUGIN_NAME}/sudo/key", self.api_sudo_key, ["GET"], "Get sudo public key")
+        _reg(
+            f"/{PLUGIN_NAME}/sudo/key",
+            self.api_sudo_key,
+            ["GET"],
+            "Get sudo public key",
+        )
         _reg(f"/{PLUGIN_NAME}/sync", self.api_sync, ["POST"], "Sync now")
         _reg(f"/{PLUGIN_NAME}/refresh", self.api_refresh, ["POST"], "Refresh")
         _reg(f"/{PLUGIN_NAME}/scan", self.api_scan, ["POST"], "Scan dirs")
         _reg(f"/{PLUGIN_NAME}/config", self.api_get_config, ["GET"], "Get config")
-        _reg(f"/{PLUGIN_NAME}/config/save", self.api_save_config, ["POST"], "Save config")
+        _reg(
+            f"/{PLUGIN_NAME}/config/save", self.api_save_config, ["POST"], "Save config"
+        )
         _reg(f"/{PLUGIN_NAME}/start", self.api_start, ["POST"], "Start NapCat")
         _reg(f"/{PLUGIN_NAME}/stop", self.api_stop, ["POST"], "Stop NapCat")
         _reg(f"/{PLUGIN_NAME}/restart", self.api_restart, ["POST"], "Restart NapCat")
         _reg(f"/{PLUGIN_NAME}/install", self.api_install, ["POST"], "Install (Linux)")
-        _reg(f"/{PLUGIN_NAME}/uninstall", self.api_uninstall, ["POST"], "Uninstall NapCat")
-        _reg(f"/{PLUGIN_NAME}/releases", self.api_releases, ["GET"], "List NapCat releases")
+        _reg(
+            f"/{PLUGIN_NAME}/uninstall",
+            self.api_uninstall,
+            ["POST"],
+            "Uninstall NapCat",
+        )
+        _reg(
+            f"/{PLUGIN_NAME}/releases",
+            self.api_releases,
+            ["GET"],
+            "List NapCat releases",
+        )
         _reg(f"/{PLUGIN_NAME}/logs", self.api_get_logs, ["GET"], "Get logs")
         _reg(f"/{PLUGIN_NAME}/open-webui", self.api_open_webui, ["POST"], "Open WebUI")
         _reg(f"/{PLUGIN_NAME}/cleanup", self.api_cleanup, ["POST"], "Cleanup")
-        _reg(f"/{PLUGIN_NAME}/onboarding/done", self.api_onboarding_done, ["POST"], "Mark onboarding done")
+        _reg(
+            f"/{PLUGIN_NAME}/onboarding/done",
+            self.api_onboarding_done,
+            ["POST"],
+            "Mark onboarding done",
+        )
         _reg(f"/{PLUGIN_NAME}/ui/theme", self.api_save_theme, ["POST"], "Save UI theme")
-        _reg(f"/{PLUGIN_NAME}/download/options", self.api_download_options, ["POST"], "Save download options")
-        _reg(f"/{PLUGIN_NAME}/deps/status", self.api_deps_status, ["GET"], "Check Linux dependencies")
-        _reg(f"/{PLUGIN_NAME}/linux/install-deps", self.api_install_linux_deps, ["POST"], "Install Linux dependencies")
+        _reg(
+            f"/{PLUGIN_NAME}/download/options",
+            self.api_download_options,
+            ["POST"],
+            "Save download options",
+        )
+        _reg(
+            f"/{PLUGIN_NAME}/deps/status",
+            self.api_deps_status,
+            ["GET"],
+            "Check Linux dependencies",
+        )
+        _reg(
+            f"/{PLUGIN_NAME}/linux/install-deps",
+            self.api_install_linux_deps,
+            ["POST"],
+            "Install Linux dependencies",
+        )
 
-        safe_config = {**self.config, "sudo_password": "***" if self.config.get("sudo_password") else ""}
+        safe_config = {
+            **self.config,
+            "sudo_password": "***" if self.config.get("sudo_password") else "",
+        }
         logger.info(f"[NapCat Go] FINAL CONFIG: {safe_config}")
 
         auto_start = bool(self.config.get("auto_start", True))
@@ -155,7 +207,9 @@ class NapCatGoPlugin(Star):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            logger.error(f"[NapCat Go] post-install auto_start failed: {e}", exc_info=True)
+            logger.error(
+                f"[NapCat Go] post-install auto_start failed: {e}", exc_info=True
+            )
 
     # ---------- API ----------
 
@@ -240,13 +294,21 @@ class NapCatGoPlugin(Star):
         if not running:
             return []
         if self.deploy_mode == "docker":
-            return [{"pid": 0, "name": "Docker · " + self.manager.docker_container_name(), "online": True}]
+            return [
+                {
+                    "pid": 0,
+                    "name": "Docker · " + self.manager.docker_container_name(),
+                    "online": True,
+                }
+            ]
         pids = sorted(getattr(self.manager, "_launched_pids", set()))
         if not pids:
             proc = getattr(self.manager, "process", None)
             if proc is not None and getattr(proc, "returncode", None) is None:
                 pids = [proc.pid]
-        return [{"pid": int(pid), "name": "NapCat / QQ", "online": True} for pid in pids]
+        return [
+            {"pid": int(pid), "name": "NapCat / QQ", "online": True} for pid in pids
+        ]
 
     async def api_sudo_key(self):
         if self._sudo_key is None:
@@ -318,7 +380,9 @@ class NapCatGoPlugin(Star):
             if err:
                 return error_response(err)
             ok, msg = self.syncer.sync(sudo_password=pw)
-            return json_response({"ok": ok, "message": msg, "status": self.syncer.status_dict()})
+            return json_response(
+                {"ok": ok, "message": msg, "status": self.syncer.status_dict()}
+            )
         except Exception as e:
             return error_response(f"Sync exception: {e}")
 
@@ -331,7 +395,9 @@ class NapCatGoPlugin(Star):
 
     async def api_scan(self):
         try:
-            return json_response({"ok": True, "candidates": self.syncer.scan_candidates()})
+            return json_response(
+                {"ok": True, "candidates": self.syncer.scan_candidates()}
+            )
         except Exception as e:
             return error_response(f"Scan failed: {e}")
 
@@ -359,22 +425,59 @@ class NapCatGoPlugin(Star):
             pw = new_pw
         elif not pw:
             pw = self._saved_sudo_password()
-        deploy_mode = str(payload.get("deploy_mode", "") or "").strip().lower() or self.config.get("deploy_mode", "auto")
+        deploy_mode = str(
+            payload.get("deploy_mode", "") or ""
+        ).strip().lower() or self.config.get("deploy_mode", "auto")
         if deploy_mode not in {"auto", "windows", "docker", "native"}:
             deploy_mode = "auto"
-        self.config.update({
-            "napcat_config_dir": str(payload.get("napcat_config_dir", "") or "").strip(),
-            "astrbot_config_path": str(payload.get("astrbot_config_path", "") or "").strip(),
-            "qq_number": str(payload.get("qq_number", "") or "").strip(),
-            "deploy_mode": deploy_mode,
-            "docker_image": str(payload.get("docker_image", self.config.get("docker_image", "mlikiowa/napcat-docker")) or "").strip(),
-            "docker_tag": str(payload.get("docker_tag", self.config.get("docker_tag", "latest")) or "").strip(),
-            "docker_container_name": str(payload.get("docker_container_name", self.config.get("docker_container_name", "napcat-go")) or "").strip(),
-            "napcat_download_mirror": str(payload.get("napcat_download_mirror", self.config.get("napcat_download_mirror", "https://gh.zwy.one/"))),
-            "napcat_version": str(payload.get("napcat_version", self.config.get("napcat_version", "latest")) or "latest").strip(),
-        })
+        self.config.update(
+            {
+                "napcat_config_dir": str(
+                    payload.get("napcat_config_dir", "") or ""
+                ).strip(),
+                "astrbot_config_path": str(
+                    payload.get("astrbot_config_path", "") or ""
+                ).strip(),
+                "qq_number": str(payload.get("qq_number", "") or "").strip(),
+                "deploy_mode": deploy_mode,
+                "docker_image": str(
+                    payload.get(
+                        "docker_image",
+                        self.config.get("docker_image", "mlikiowa/napcat-docker"),
+                    )
+                    or ""
+                ).strip(),
+                "docker_tag": str(
+                    payload.get("docker_tag", self.config.get("docker_tag", "latest"))
+                    or ""
+                ).strip(),
+                "docker_container_name": str(
+                    payload.get(
+                        "docker_container_name",
+                        self.config.get("docker_container_name", "napcat-go"),
+                    )
+                    or ""
+                ).strip(),
+                "napcat_download_mirror": str(
+                    payload.get(
+                        "napcat_download_mirror",
+                        self.config.get(
+                            "napcat_download_mirror", "https://gh.zwy.one/"
+                        ),
+                    )
+                ),
+                "napcat_version": str(
+                    payload.get(
+                        "napcat_version", self.config.get("napcat_version", "latest")
+                    )
+                    or "latest"
+                ).strip(),
+            }
+        )
         try:
-            port = int(payload.get("napcat_port", self.config.get("napcat_port", 6099)) or 6099)
+            port = int(
+                payload.get("napcat_port", self.config.get("napcat_port", 6099)) or 6099
+            )
         except (TypeError, ValueError):
             port = 6099
         if 1 <= port <= 65535:
@@ -387,7 +490,9 @@ class NapCatGoPlugin(Star):
         if "auto_sync" in payload:
             self.config["auto_sync"] = bool(payload.get("auto_sync"))
         if "auto_start_after_install" in payload:
-            self.config["auto_start_after_install"] = bool(payload.get("auto_start_after_install"))
+            self.config["auto_start_after_install"] = bool(
+                payload.get("auto_start_after_install")
+            )
         self.deploy_mode = resolve_deploy_mode(
             self.config.get("deploy_mode", "auto"),
             docker_binary_available=detect_docker_binary() is not None,
@@ -396,30 +501,70 @@ class NapCatGoPlugin(Star):
         self._save_config(self.config)
         try:
             ok, msg = self.syncer.sync(sudo_password=pw)
-            if (not ok and not pw and self._sudo_required("")
-                    and any(word in str(msg).lower() for word in
-                            ("permission", "eacces", "denied", "read-only", "只读", "拒绝", "权限"))):
-                return json_response({"ok": True, "sync_ok": False, "need_sudo": True,
-                                      "sync_msg": msg, "status": self.syncer.status_dict()})
-            return json_response({"ok": True, "sync_ok": ok, "sync_msg": msg,
-                                  "status": self.syncer.status_dict()})
+            if (
+                not ok
+                and not pw
+                and self._sudo_required("")
+                and any(
+                    word in str(msg).lower()
+                    for word in (
+                        "permission",
+                        "eacces",
+                        "denied",
+                        "read-only",
+                        "只读",
+                        "拒绝",
+                        "权限",
+                    )
+                )
+            ):
+                return json_response(
+                    {
+                        "ok": True,
+                        "sync_ok": False,
+                        "need_sudo": True,
+                        "sync_msg": msg,
+                        "status": self.syncer.status_dict(),
+                    }
+                )
+            return json_response(
+                {
+                    "ok": True,
+                    "sync_ok": ok,
+                    "sync_msg": msg,
+                    "status": self.syncer.status_dict(),
+                }
+            )
         except Exception as e:
-            return json_response({"ok": True, "sync_ok": False,
-                                  "sync_msg": f"Sync exception: {e}",
-                                  "status": self.syncer.status_dict()})
+            return json_response(
+                {
+                    "ok": True,
+                    "sync_ok": False,
+                    "sync_msg": f"Sync exception: {e}",
+                    "status": self.syncer.status_dict(),
+                }
+            )
 
     async def api_start(self):
         _payload, pw, err = await self._read_sudo_payload()
         if err:
             return error_response(err)
         if not self.manager.is_installed():
-            return json_response({
-                "ok": False,
-                "need_install": True,
-                "message": "未检测到已安装的 NapCat，请先下载并安装",
-            })
+            return json_response(
+                {
+                    "ok": False,
+                    "need_install": True,
+                    "message": "未检测到已安装的 NapCat，请先下载并安装",
+                }
+            )
         if self._sudo_required(pw):
-            return json_response({"ok": False, "need_sudo": True, "message": "启动 NapCat 需要 sudo 密码"})
+            return json_response(
+                {
+                    "ok": False,
+                    "need_sudo": True,
+                    "message": "启动 NapCat 需要 sudo 密码",
+                }
+            )
         ok = await self.manager.start(pw)
         return json_response({"ok": ok})
 
@@ -428,7 +573,13 @@ class NapCatGoPlugin(Star):
         if err:
             return error_response(err)
         if self._sudo_required(pw):
-            return json_response({"ok": False, "need_sudo": True, "message": "停止 NapCat 需要 sudo 密码"})
+            return json_response(
+                {
+                    "ok": False,
+                    "need_sudo": True,
+                    "message": "停止 NapCat 需要 sudo 密码",
+                }
+            )
         await self.manager.stop(pw)
         return json_response({"ok": True})
 
@@ -437,7 +588,13 @@ class NapCatGoPlugin(Star):
         if err:
             return error_response(err)
         if self._sudo_required(pw):
-            return json_response({"ok": False, "need_sudo": True, "message": "重启 NapCat 需要 sudo 密码"})
+            return json_response(
+                {
+                    "ok": False,
+                    "need_sudo": True,
+                    "message": "重启 NapCat 需要 sudo 密码",
+                }
+            )
         await self.manager.restart(pw)
         return json_response({"ok": True})
 
@@ -452,10 +609,12 @@ class NapCatGoPlugin(Star):
         if self.manager.deploy_mode == "docker":
             try:
                 ok = await self.manager._start_docker()
-                return json_response({
-                    "ok": ok,
-                    "message": "Docker 容器已启动" if ok else "Docker 容器启动失败",
-                })
+                return json_response(
+                    {
+                        "ok": ok,
+                        "message": "Docker 容器已启动" if ok else "Docker 容器启动失败",
+                    }
+                )
             except Exception as e:
                 return error_response(f"Docker install failed: {e}")
         if IS_WINDOWS:
@@ -465,21 +624,33 @@ class NapCatGoPlugin(Star):
                 return error_response(f"Download failed: {e}")
         else:
             if self._sudo_required(pw):
-                return json_response({"ok": False, "need_sudo": True, "message": "安装 NapCat 需要 sudo 密码"})
+                return json_response(
+                    {
+                        "ok": False,
+                        "need_sudo": True,
+                        "message": "安装 NapCat 需要 sudo 密码",
+                    }
+                )
             try:
-                ok = await self.manager.install_linux_napcat(version=version, sudo_password=pw)
+                ok = await self.manager.install_linux_napcat(
+                    version=version, sudo_password=pw
+                )
             except Exception as e:
                 return error_response(f"Install failed: {e}")
 
         auto_starting = False
         if ok and bool(self.config.get("auto_start_after_install", True)):
-            self._post_install_task = asyncio.ensure_future(self._start_after_install(pw))
+            self._post_install_task = asyncio.ensure_future(
+                self._start_after_install(pw)
+            )
             auto_starting = True
         if ok:
             message = "安装完成，正在自动启动 NapCat" if auto_starting else "安装完成"
         else:
             message = "安装失败，请查看右侧日志"
-        return json_response({"ok": ok, "auto_starting": auto_starting, "message": message})
+        return json_response(
+            {"ok": ok, "auto_starting": auto_starting, "message": message}
+        )
 
     async def api_releases(self):
         try:
@@ -494,9 +665,17 @@ class NapCatGoPlugin(Star):
             return error_response(err)
         purge_qq = bool(payload.get("purge_qq", False))
         if self._sudo_required(pw):
-            return json_response({"ok": False, "need_sudo": True, "message": "卸载 NapCat 需要 sudo 密码"})
+            return json_response(
+                {
+                    "ok": False,
+                    "need_sudo": True,
+                    "message": "卸载 NapCat 需要 sudo 密码",
+                }
+            )
         try:
-            ok = await self.manager.uninstall_napcat(purge_qq=purge_qq, sudo_password=pw)
+            ok = await self.manager.uninstall_napcat(
+                purge_qq=purge_qq, sudo_password=pw
+            )
             return json_response({"ok": ok})
         except Exception as e:
             return error_response(f"Uninstall failed: {e}")
@@ -550,27 +729,41 @@ class NapCatGoPlugin(Star):
         if not isinstance(payload, dict):
             payload = {}
         if "napcat_download_mirror" in payload:
-            self.config["napcat_download_mirror"] = str(payload.get("napcat_download_mirror") or "").strip()
+            self.config["napcat_download_mirror"] = str(
+                payload.get("napcat_download_mirror") or ""
+            ).strip()
         if "napcat_version" in payload:
-            self.config["napcat_version"] = str(payload.get("napcat_version") or "latest").strip() or "latest"
+            self.config["napcat_version"] = (
+                str(payload.get("napcat_version") or "latest").strip() or "latest"
+            )
         self._save_config(self.config)
-        return json_response({
-            "ok": True,
-            "napcat_download_mirror": self.config.get("napcat_download_mirror", ""),
-            "napcat_version": self.config.get("napcat_version", "latest"),
-        })
+        return json_response(
+            {
+                "ok": True,
+                "napcat_download_mirror": self.config.get("napcat_download_mirror", ""),
+                "napcat_version": self.config.get("napcat_version", "latest"),
+            }
+        )
 
     async def api_deps_status(self):
         if not IS_LINUX:
             return json_response({"ok": True, "linux": False, "missing": []})
-        return json_response({"ok": True, "linux": True, "missing": linux_tools.missing_linux_deps()})
+        return json_response(
+            {"ok": True, "linux": True, "missing": linux_tools.missing_linux_deps()}
+        )
 
     async def api_install_linux_deps(self):
         _payload, pw, err = await self._read_sudo_payload()
         if err:
             return error_response(err)
         if not pw:
-            return json_response({"ok": False, "need_sudo": True, "message": "安装 Linux 依赖需要 sudo 密码"})
+            return json_response(
+                {
+                    "ok": False,
+                    "need_sudo": True,
+                    "message": "安装 Linux 依赖需要 sudo 密码",
+                }
+            )
         result = await linux_tools.install_linux_deps(self, pw)
         return json_response(result)
 
@@ -658,8 +851,17 @@ class NapCatGoPlugin(Star):
                 continue
             if k in merged and merged[k] is not None:
                 v = merged[k]
-                if k in ("auto_sync", "auto_start", "auto_start_after_install", "onboarding_done"):
-                    final[k] = v if isinstance(v, bool) else str(v).strip().lower() in ("1", "true", "yes", "on")
+                if k in (
+                    "auto_sync",
+                    "auto_start",
+                    "auto_start_after_install",
+                    "onboarding_done",
+                ):
+                    final[k] = (
+                        v
+                        if isinstance(v, bool)
+                        else str(v).strip().lower() in ("1", "true", "yes", "on")
+                    )
                 elif k in ("napcat_port", "onboarding_version"):
                     try:
                         final[k] = int(v)
@@ -741,26 +943,38 @@ class NapCatGoPlugin(Star):
 
     def _status_text(self) -> str:
         s = self.syncer.status_dict()
-        lines = ["NapCat Go Status", "-" * 20, f"Platform: {s['platform']}"]
-        lines.append(f"deploy_mode: {self.deploy_mode}")
+        deploy_labels = {
+            "windows": "Windows 原生",
+            "docker": "Docker（容器化）",
+            "native": "Linux 本地安装",
+            "auto": "自动",
+        }
+        lines = ["NapCat Go 状态", "-" * 20, f"运行平台：{s['platform']}"]
+        lines.append(
+            f"部署方式：{deploy_labels.get(self.deploy_mode, self.deploy_mode)}"
+        )
         if IS_LINUX:
-            lines.append(f"distro: {_detect_distro_family()}")
-            lines.append(f"QQ version: {get_linux_qq_version() or '(未安装)'}")
-            lines.append(f"QQ build: {get_linux_qq_build_code()}")
+            lines.append(f"Linux 发行版：{_detect_distro_family()}")
+            lines.append(f"QQ 版本：{get_linux_qq_version() or '未安装'}")
+            lines.append(f"QQ 构建号：{get_linux_qq_build_code() or '未知'}")
             lines.append(
-                f"QQ compatible: {'yes' if is_linux_qq_version_compatible() else 'NO'} "
-                f"(需要 build ∈ [{NAPCAT_SUPPORTED_QQ_MIN}, {NAPCAT_SUPPORTED_QQ_MAX}])"
+                f"QQ 兼容性：{'兼容' if is_linux_qq_version_compatible() else '不兼容'} "
+                f"（需要构建号在 [{NAPCAT_SUPPORTED_QQ_MIN}, {NAPCAT_SUPPORTED_QQ_MAX}] 范围内）"
             )
             try:
                 root = self.manager._find_new_style_root()
-                lines.append(f"new_style_root: {root or '(未找到)'}")
-                lines.append(f"config_dir: {self.manager._get_config_dir()}")
+                lines.append(f"新方案目录：{root or '未找到'}")
+                lines.append(f"NapCat 配置目录：{self.manager._get_config_dir()}")
             except Exception:
                 pass
-        lines.append(f"QQ number (cached): {self.manager.napcat_qq_number or '(未识别)'}")
-        lines.append(f"NapCat: {'running' if self.manager.is_running() else 'stopped'}")
-        lines.append(f"QQ login: {'yes' if self.manager._qq_logged_in else 'no'}")
-        lines.append(f"NapCat dir: {self.manager.napcat_dir}")
+        lines.append(f"QQ 号（缓存）：{self.manager.napcat_qq_number or '未识别'}")
+        lines.append(
+            f"NapCat 状态：{'运行中' if self.manager.is_running() else '未运行'}"
+        )
+        lines.append(
+            f"QQ 登录状态：{'已登录' if self.manager._qq_logged_in else '未登录'}"
+        )
+        lines.append(f"NapCat 目录：{self.manager.napcat_dir}")
         return "\n".join(lines)
 
     async def terminate(self):

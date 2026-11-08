@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, Set, List, Tuple
 from astrbot.api import logger
 
 PLUGIN_NAME = "pulid_napcat_go_to_astrbot"
-PLUGIN_VERSION = "7.5.0"
+PLUGIN_VERSION = "7.5.1"
 CONFIG_VERSION = 5
 
 NAPCAT_RELEASE_BASE = "https://github.com/NapNeko/NapCatQQ/releases/download"
@@ -25,53 +25,81 @@ DEFAULT_NAPCAT_VERSION = "latest"
 DEFAULT_DOWNLOAD_MIRROR = "https://gh.zwy.one/"
 
 NAPCAT_MIRROR_CANDIDATES = [
-    "https://gh.zwy.one/", "https://raw.ihtw.moe/", "https://gh.llkk.cc/",
-    "https://gh.xxooo.cf/", "https://ghfile.geekertao.top/", "https://ghproxy.cxkpro.top/",
-    "https://git.yylx.win/", "https://gh.h233.eu.org/", "https://cdn.crashmc.com/",
-    "https://githubproxy.cc/", "https://gh-proxy.com/", "https://ghproxy.net/",
+    "https://gh.zwy.one/",
+    "https://raw.ihtw.moe/",
+    "https://gh.llkk.cc/",
+    "https://gh.xxooo.cf/",
+    "https://ghfile.geekertao.top/",
+    "https://ghproxy.cxkpro.top/",
+    "https://git.yylx.win/",
+    "https://gh.h233.eu.org/",
+    "https://cdn.crashmc.com/",
+    "https://githubproxy.cc/",
+    "https://gh-proxy.com/",
+    "https://ghproxy.net/",
     "https://ghfast.top/",
 ]
 
 # ============ 默认基础配置 ============
 DEFAULT_NAPCAT_JSON = {
-    "fileLog": False, "consoleLog": True,
-    "fileLogLevel": "debug", "consoleLogLevel": "info",
-    "packetBackend": "auto", "packetServer": "", "o3HookMode": 1,
+    "fileLog": False,
+    "consoleLog": True,
+    "fileLogLevel": "debug",
+    "consoleLogLevel": "info",
+    "packetBackend": "auto",
+    "packetServer": "",
+    "o3HookMode": 1,
     "bypass": {
-        "hook": False, "window": False, "module": False,
-        "process": False, "container": False, "js": False
-    }
+        "hook": False,
+        "window": False,
+        "module": False,
+        "process": False,
+        "container": False,
+        "js": False,
+    },
 }
 
 DEFAULT_NAPCAT_ACCOUNT_JSON = {**DEFAULT_NAPCAT_JSON, "autoTimeSync": True}
 
 DEFAULT_NAPCAT_PROTOCOL_JSON = {
     "enable": False,
-    "network": {
-        "httpServers": [], "websocketServers": [], "websocketClients": []
-    }
+    "network": {"httpServers": [], "websocketServers": [], "websocketClients": []},
 }
 
 DEFAULT_WEBUI_JSON = {
-    "host": "::", "port": 6099, "token": "5503af8581de",
-    "loginRate": 10, "autoLoginAccount": "", "disableWebUI": False,
-    "accessControlMode": "none", "ipWhitelist": [], "ipBlacklist": [],
-    "enableXForwardedFor": False, "enable2FA": False, "totpSecret": ""
+    "host": "::",
+    "port": 6099,
+    "token": "5503af8581de",
+    "loginRate": 10,
+    "autoLoginAccount": "",
+    "disableWebUI": False,
+    "accessControlMode": "none",
+    "ipWhitelist": [],
+    "ipBlacklist": [],
+    "enableXForwardedFor": False,
+    "enable2FA": False,
+    "totpSecret": "",
 }
 
 DEFAULT_ONEBOT11_TEMPLATE = {
     "network": {
-        "httpServers": [], "httpSseServers": [], "httpClients": [],
-        "websocketServers": [], "websocketClients": [], "plugins": []
+        "httpServers": [],
+        "httpSseServers": [],
+        "httpClients": [],
+        "websocketServers": [],
+        "websocketClients": [],
+        "plugins": [],
     },
     "musicSignUrl": "",
     "enableLocalFile2Url": False,
     "parseMultMsg": False,
     "imageDownloadProxy": "",
     "timeout": {
-        "baseTimeout": 10000, "uploadSpeedKBps": 256,
-        "downloadSpeedKBps": 256, "maxTimeout": 1800000
-    }
+        "baseTimeout": 10000,
+        "uploadSpeedKBps": 256,
+        "downloadSpeedKBps": 256,
+        "maxTimeout": 1800000,
+    },
 }
 
 NAPCAT_SUPPORTED_QQ_MIN = 28498
@@ -96,12 +124,16 @@ DOCKER_QQ_DATA_PATH = "/app/.config/QQ"
 DOCKER_WEBUI_PORT = 6099
 
 DEFAULT_CONFIG = {
-    "auto_sync": True, "auto_start": True, "auto_start_after_install": True,
+    "auto_sync": True,
+    "auto_start": True,
+    "auto_start_after_install": True,
     "sudo_password": "",
     "napcat_port": 6099,
     "napcat_version": DEFAULT_NAPCAT_VERSION,
     "napcat_download_mirror": DEFAULT_DOWNLOAD_MIRROR,
-    "napcat_config_dir": "", "astrbot_config_path": "", "qq_number": "",
+    "napcat_config_dir": "",
+    "astrbot_config_path": "",
+    "qq_number": "",
     "deploy_mode": DEFAULT_DEPLOY_MODE,
     "docker_image": DEFAULT_DOCKER_IMAGE,
     "docker_tag": DEFAULT_DOCKER_TAG,
@@ -123,11 +155,40 @@ QQ_LOGIN_ID_RE = re.compile(
 
 _ASCII_ART_CHARS = set("┌┐└┘─│█║═╔╗╚╝")
 _INSTALL_KEEP_SUBSTR = (
-    "失败", "错误", "警告", "error", "Error", "ERROR", "failed", "Failed",
-    "无法", "No such", "not found", "未找到", "安装完成", "安装失败",
-    "成功", "完成", "开始", "下载", "解压", "拷贝", "安装到", "安装目录",
-    "✔", "✘", "launcher", "launcher.sh", "Xvfb", "sudo", "密码", "chown",
-    "qq", "command not found", "文件已存在", "重命名",
+    "失败",
+    "错误",
+    "警告",
+    "error",
+    "Error",
+    "ERROR",
+    "failed",
+    "Failed",
+    "无法",
+    "No such",
+    "not found",
+    "未找到",
+    "安装完成",
+    "安装失败",
+    "成功",
+    "完成",
+    "开始",
+    "下载",
+    "解压",
+    "拷贝",
+    "安装到",
+    "安装目录",
+    "✔",
+    "✘",
+    "launcher",
+    "launcher.sh",
+    "Xvfb",
+    "sudo",
+    "密码",
+    "chown",
+    "qq",
+    "command not found",
+    "文件已存在",
+    "重命名",
 )
 _TS_INFO = re.compile(r"^\[\d{4}-\d{2}-\d{2}[ T]\d\d:\d\d:\d\d\]\s*:")
 _SECRET_SALT = b"ncgo-sudo-secret-v1"
@@ -177,8 +238,9 @@ def detect_docker_binary() -> Optional[str]:
     return shutil.which("docker")
 
 
-def resolve_deploy_mode(mode: str, *, is_windows: bool = IS_WINDOWS,
-                        docker_binary_available: bool = True) -> str:
+def resolve_deploy_mode(
+    mode: str, *, is_windows: bool = IS_WINDOWS, docker_binary_available: bool = True
+) -> str:
     m = str(mode or DEFAULT_DEPLOY_MODE).strip().lower()
     if m not in DEPLOY_MODES:
         m = DEFAULT_DEPLOY_MODE
@@ -191,15 +253,36 @@ def resolve_deploy_mode(mode: str, *, is_windows: bool = IS_WINDOWS,
     return m
 
 
-def build_docker_run_args(container, image_ref, host_config_dir, host_qq_dir,
-                          uid, gid, host_webui_port, extra_publish="3001:3001"):
+def build_docker_run_args(
+    container,
+    image_ref,
+    host_config_dir,
+    host_qq_dir,
+    uid,
+    gid,
+    host_webui_port,
+    extra_publish="3001:3001",
+):
     return [
-        "run", "-d", "--name", container, "--restart", "unless-stopped",
-        "-e", f"NAPCAT_UID={uid}", "-e", f"NAPCAT_GID={gid}",
-        "-p", f"{host_webui_port}:{DOCKER_WEBUI_PORT}", "-p", extra_publish,
+        "run",
+        "-d",
+        "--name",
+        container,
+        "--restart",
+        "unless-stopped",
+        "-e",
+        f"NAPCAT_UID={uid}",
+        "-e",
+        f"NAPCAT_GID={gid}",
+        "-p",
+        f"{host_webui_port}:{DOCKER_WEBUI_PORT}",
+        "-p",
+        extra_publish,
         "--add-host=host.docker.internal:host-gateway",
-        "-v", f"{host_config_dir}:{DOCKER_NAPCAT_CONFIG_PATH}",
-        "-v", f"{host_qq_dir}:{DOCKER_QQ_DATA_PATH}",
+        "-v",
+        f"{host_config_dir}:{DOCKER_NAPCAT_CONFIG_PATH}",
+        "-v",
+        f"{host_qq_dir}:{DOCKER_QQ_DATA_PATH}",
         image_ref,
     ]
 
@@ -290,6 +373,7 @@ def _encrypt_secret(plain: str) -> str:
     data = plain.encode("utf-8")
     try:
         from cryptography.fernet import Fernet
+
         key = base64.urlsafe_b64encode(_machine_master_key())
         return "enc:fernet:" + Fernet(key).encrypt(data).decode("ascii")
     except Exception:
@@ -297,8 +381,13 @@ def _encrypt_secret(plain: str) -> str:
         stream = b""
         cnt = 0
         while len(stream) < len(data):
-            stream += hashlib.pbkdf2_hmac("sha256", _machine_master_key(),
-                                          salt + cnt.to_bytes(4, "big"), 1, dklen=32)
+            stream += hashlib.pbkdf2_hmac(
+                "sha256",
+                _machine_master_key(),
+                salt + cnt.to_bytes(4, "big"),
+                1,
+                dklen=32,
+            )
             cnt += 1
         out = bytes(b ^ stream[i] for i, b in enumerate(data))
         return "enc:v1:" + base64.b64encode(salt + out).decode("ascii")
@@ -310,16 +399,26 @@ def _decrypt_secret(stored: str) -> str:
     try:
         if stored.startswith("enc:fernet:"):
             from cryptography.fernet import Fernet
+
             key = base64.urlsafe_b64encode(_machine_master_key())
-            return Fernet(key).decrypt(stored[len("enc:fernet:"):].encode("ascii")).decode("utf-8")
+            return (
+                Fernet(key)
+                .decrypt(stored[len("enc:fernet:") :].encode("ascii"))
+                .decode("utf-8")
+            )
         if stored.startswith("enc:v1:"):
-            blob = base64.b64decode(stored[len("enc:v1:"):])
+            blob = base64.b64decode(stored[len("enc:v1:") :])
             salt, enc = blob[:16], blob[16:]
             stream = b""
             cnt = 0
             while len(stream) < len(enc):
-                stream += hashlib.pbkdf2_hmac("sha256", _machine_master_key(),
-                                              salt + cnt.to_bytes(4, "big"), 1, dklen=32)
+                stream += hashlib.pbkdf2_hmac(
+                    "sha256",
+                    _machine_master_key(),
+                    salt + cnt.to_bytes(4, "big"),
+                    1,
+                    dklen=32,
+                )
                 cnt += 1
             return bytes(b ^ stream[i] for i, b in enumerate(enc)).decode("utf-8")
     except Exception:
@@ -359,8 +458,7 @@ def is_qq_installed() -> bool:
                 return True
         except Exception:
             pass
-    for p in ["/usr/bin/qq", "/usr/local/bin/qq",
-              "/opt/linuxqq/qq", "/usr/lib/qq/qq"]:
+    for p in ["/usr/bin/qq", "/usr/local/bin/qq", "/opt/linuxqq/qq", "/usr/lib/qq/qq"]:
         try:
             if os.path.exists(p) and os.access(p, os.X_OK):
                 return True
@@ -375,7 +473,9 @@ def get_linux_qq_version() -> Optional[str]:
     try:
         r = subprocess.run(
             ["dpkg-query", "-W", "-f=${Version}", "linuxqq"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             stdin=subprocess.DEVNULL,
         )
         if r.returncode == 0 and (r.stdout or "").strip():
@@ -388,7 +488,9 @@ def get_linux_qq_version() -> Optional[str]:
                 continue
             r = subprocess.run(
                 [qq_bin, "--version"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
                 stdin=subprocess.DEVNULL,
             )
             out = (r.stdout or "") + (r.stderr or "")
@@ -428,7 +530,9 @@ def probe_deb_version(deb_path: Path) -> Optional[str]:
     try:
         r = subprocess.run(
             ["dpkg-deb", "-f", str(deb_path), "Version"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True,
+            text=True,
+            timeout=20,
             stdin=subprocess.DEVNULL,
         )
         if r.returncode == 0:
@@ -440,7 +544,9 @@ def probe_deb_version(deb_path: Path) -> Optional[str]:
     return None
 
 
-def is_deb_build_compatible(deb_path: Path) -> Tuple[bool, Optional[str], Optional[int]]:
+def is_deb_build_compatible(
+    deb_path: Path,
+) -> Tuple[bool, Optional[str], Optional[int]]:
     v = probe_deb_version(deb_path)
     if not v:
         return False, None, None
@@ -456,7 +562,9 @@ def list_pids_by_name(name: str) -> Set[int]:
         try:
             out = subprocess.check_output(
                 ["tasklist", "/FI", f"IMAGENAME eq {name}", "/FO", "CSV", "/NH"],
-                stderr=subprocess.DEVNULL, creationflags=CREATE_NO_WINDOW, timeout=10,
+                stderr=subprocess.DEVNULL,
+                creationflags=CREATE_NO_WINDOW,
+                timeout=10,
             ).decode("utf-8", errors="ignore")
         except Exception:
             return pids
@@ -472,8 +580,9 @@ def list_pids_by_name(name: str) -> Set[int]:
                     continue
     else:
         try:
-            out = subprocess.check_output(["pgrep", "-f", name],
-                                          stderr=subprocess.DEVNULL, timeout=10).decode()
+            out = subprocess.check_output(
+                ["pgrep", "-f", name], stderr=subprocess.DEVNULL, timeout=10
+            ).decode()
             for line in out.splitlines():
                 if line.strip().isdigit():
                     pids.add(int(line.strip()))
@@ -485,9 +594,13 @@ def list_pids_by_name(name: str) -> Set[int]:
 def kill_pid_tree(pid: int):
     if IS_WINDOWS:
         try:
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                           creationflags=CREATE_NO_WINDOW, timeout=10)
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=CREATE_NO_WINDOW,
+                timeout=10,
+            )
         except Exception:
             pass
     else:
@@ -509,9 +622,21 @@ def kill_pids(pids: Set[int]):
 
 # Linux 运行 QQ + NapCat 所需的全套系统依赖（DS 整合版）
 LINUX_RUNTIME_DEPS = [
-    "libatspi2.0-0", "libgtk-3-0", "libgbm1", "libasound2t64",
-    "libnss3", "libnotify4", "libsecret-1-0", "libxss1",
-    "libxtst6", "libxkbfile1", "xvfb", "x11vnc", "openbox",
-    "dbus-user-session", "fonts-wqy-zenhei",
-    "libgl1-mesa-dri", "xauth",
+    "libatspi2.0-0",
+    "libgtk-3-0",
+    "libgbm1",
+    "libasound2t64",
+    "libnss3",
+    "libnotify4",
+    "libsecret-1-0",
+    "libxss1",
+    "libxtst6",
+    "libxkbfile1",
+    "xvfb",
+    "x11vnc",
+    "openbox",
+    "dbus-user-session",
+    "fonts-wqy-zenhei",
+    "libgl1-mesa-dri",
+    "xauth",
 ]

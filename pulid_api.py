@@ -97,7 +97,9 @@ class NapCatAPI:
                 if not quiet:
                     logger.warning(f"NapCatAPI {method} {path} -> HTTP {resp.status}")
                 elif self.verbose:
-                    logger.debug(f"NapCatAPI {method} {path} -> HTTP {resp.status} (quiet)")
+                    logger.debug(
+                        f"NapCatAPI {method} {path} -> HTTP {resp.status} (quiet)"
+                    )
                 return None
 
         except aiohttp.ClientConnectorError as e:

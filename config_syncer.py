@@ -11,9 +11,12 @@ from typing import Optional, Dict, Any, List, Tuple
 from astrbot.api import logger
 
 from .utils import (
-    IS_WINDOWS, IS_LINUX, IS_MACOS,
+    IS_WINDOWS,
+    IS_LINUX,
+    IS_MACOS,
     DEFAULT_ONEBOT11_TEMPLATE,
-    _mask_token, reverse_ws_host,
+    _mask_token,
+    reverse_ws_host,
     resolve_persistent_dir,
 )
 from . import linux_tools
@@ -23,7 +26,11 @@ class ConfigSyncer:
     def __init__(self, plugin):
         self.plugin = plugin
         self.context = plugin.context
-        self.plugin_dir = Path(self.context.plugin_dir) if hasattr(self.context, "plugin_dir") else Path(__file__).parent
+        self.plugin_dir = (
+            Path(self.context.plugin_dir)
+            if hasattr(self.context, "plugin_dir")
+            else Path(__file__).parent
+        )
         self.persistent_dir = resolve_persistent_dir(self.context)
         self.napcat_dir = self.persistent_dir / "napcat"
 
@@ -55,9 +62,11 @@ class ConfigSyncer:
                 candidates.append(Path(self.context.get_data_dir()) / "cmd_config.json")
             except Exception:
                 pass
-        candidates += [Path("data/cmd_config.json"),
-                       Path("../data/cmd_config.json"),
-                       Path("../../data/cmd_config.json")]
+        candidates += [
+            Path("data/cmd_config.json"),
+            Path("../data/cmd_config.json"),
+            Path("../../data/cmd_config.json"),
+        ]
         seen = set()
         for c in candidates:
             try:
@@ -92,9 +101,13 @@ class ConfigSyncer:
             if host in ("0.0.0.0", "[::]", "::", ""):
                 host = "127.0.0.1"
             token = p.get("ws_reverse_token") or p.get("access_token") or ""
-            return {"id": p.get("id", ""), "host": host, "port": int(port),
-                    "path": p.get("ws_reverse_path", "/ws/") or "/ws/",
-                    "token": str(token)}
+            return {
+                "id": p.get("id", ""),
+                "host": host,
+                "port": int(port),
+                "path": p.get("ws_reverse_path", "/ws/") or "/ws/",
+                "token": str(token),
+            }
         return None
 
     def _find_napcat_config_dir(self) -> Optional[Path]:
@@ -184,8 +197,7 @@ class ConfigSyncer:
     def scan_candidates(self) -> List[Dict[str, str]]:
         results: List[Dict[str, str]] = []
         seen = set()
-        candidates = [self.napcat_dir / "config",
-                      self.napcat_dir / "napcat" / "config"]
+        candidates = [self.napcat_dir / "config", self.napcat_dir / "napcat" / "config"]
         try:
             root = self.plugin.manager._find_new_style_root()
             if root:
@@ -227,12 +239,17 @@ class ConfigSyncer:
         self.plugin.manager._sudo_warm_sync(pw)
 
         code, out = linux_tools.run_sudo_sync(
-            self.plugin, ["chown", "-R", f"{uid}:{gid}", str(self.napcat_config_dir)], pw, timeout=30
+            self.plugin,
+            ["chown", "-R", f"{uid}:{gid}", str(self.napcat_config_dir)],
+            pw,
+            timeout=30,
         )
         if code == 0:
             logger.info(f"[NapCat Go] pre-sync chown ok: {self.napcat_config_dir}")
         else:
-            logger.warning(f"[NapCat Go] pre-sync chown rc={code}: {str(out or '').strip()[:120]}")
+            logger.warning(
+                f"[NapCat Go] pre-sync chown rc={code}: {str(out or '').strip()[:120]}"
+            )
 
         try:
             parent = self.napcat_config_dir.parent
@@ -277,7 +294,9 @@ class ConfigSyncer:
                 if not isinstance(config, dict):
                     config = dict(DEFAULT_ONEBOT11_TEMPLATE)
             except Exception as e:
-                logger.warning(f"[NapCat Go] 解析 {self.napcat_config_file} 失败: {e}，使用默认模板")
+                logger.warning(
+                    f"[NapCat Go] 解析 {self.napcat_config_file} 失败: {e}，使用默认模板"
+                )
                 config = dict(DEFAULT_ONEBOT11_TEMPLATE)
         else:
             self.napcat_config_dir.mkdir(parents=True, exist_ok=True)
@@ -287,8 +306,14 @@ class ConfigSyncer:
         if not isinstance(network, dict):
             network = {}
             config["network"] = network
-        for key in ("httpServers", "httpSseServers", "httpClients",
-                    "websocketServers", "websocketClients", "plugins"):
+        for key in (
+            "httpServers",
+            "httpSseServers",
+            "httpClients",
+            "websocketServers",
+            "websocketClients",
+            "plugins",
+        ):
             if key not in network or not isinstance(network[key], list):
                 network[key] = []
 
@@ -298,32 +323,38 @@ class ConfigSyncer:
         config.setdefault("imageDownloadProxy", "")
         if "timeout" not in config or not isinstance(config["timeout"], dict):
             config["timeout"] = {
-                "baseTimeout": 10000, "uploadSpeedKBps": 256,
-                "downloadSpeedKBps": 256, "maxTimeout": 1800000
+                "baseTimeout": 10000,
+                "uploadSpeedKBps": 256,
+                "downloadSpeedKBps": 256,
+                "maxTimeout": 1800000,
             }
 
         bot = self.astrbot_bot
-        ws_host = reverse_ws_host(getattr(self.plugin, "deploy_mode", None), bot["host"])
+        ws_host = reverse_ws_host(
+            getattr(self.plugin, "deploy_mode", None), bot["host"]
+        )
         ws_url = f"ws://{ws_host}:{bot['port']}{bot['path']}"
 
         # ⚠关键修复：一次写全所SSL 相关字段，覆NapCat 各版本读取的键名
-        network["websocketClients"] = [{
-            "enable": True,
-            "name": "astrbot",
-            "url": ws_url,
-            "reportSelfMessage": False,
-            "messagePostFormat": "array",
-            "token": bot["token"],
-            "debug": False,
-            "heartInterval": 30000,
-            "reconnectInterval": 3000,
-            # SSL 关闭（各版本键名兼容            "verifyCertificate": False,   # 新版 NapCat
-            "sslVerify": False,            # 旧版 NapCat
-            "sslCertVerify": False,        # 兼容
-            "ssl": False,                  # 关闭 wss
-            "sslCert": "",
-            "sslKey": "",
-        }]
+        network["websocketClients"] = [
+            {
+                "enable": True,
+                "name": "astrbot",
+                "url": ws_url,
+                "reportSelfMessage": False,
+                "messagePostFormat": "array",
+                "token": bot["token"],
+                "debug": False,
+                "heartInterval": 30000,
+                "reconnectInterval": 3000,
+                # SSL 关闭（各版本键名兼容            "verifyCertificate": False,   # 新版 NapCat
+                "sslVerify": False,  # 旧版 NapCat
+                "sslCertVerify": False,  # 兼容
+                "ssl": False,  # 关闭 wss
+                "sslCert": "",
+                "sslKey": "",
+            }
+        ]
 
         self._backup_file(self.napcat_config_file)
         try:
@@ -349,17 +380,27 @@ class ConfigSyncer:
         bot = self.astrbot_bot or {}
         return {
             "platform": platform.system(),
-            "is_windows": IS_WINDOWS, "is_linux": IS_LINUX, "is_macos": IS_MACOS,
+            "is_windows": IS_WINDOWS,
+            "is_linux": IS_LINUX,
+            "is_macos": IS_MACOS,
             "persistent_dir": str(self.persistent_dir),
             "napcat_data_dir": str(self.napcat_dir),
-            "astrbot_config_path": str(self.astrbot_config_path) if self.astrbot_config_path else None,
+            "astrbot_config_path": str(self.astrbot_config_path)
+            if self.astrbot_config_path
+            else None,
             "astrbot_bot_found": self.astrbot_bot is not None,
-            "astrbot_bot_id": bot.get("id"), "astrbot_bot_host": bot.get("host"),
+            "astrbot_bot_id": bot.get("id"),
+            "astrbot_bot_host": bot.get("host"),
             "astrbot_bot_port": bot.get("port"),
             "astrbot_bot_token": _mask_token(bot.get("token", "")),
-            "napcat_config_dir": str(self.napcat_config_dir) if self.napcat_config_dir else None,
-            "napcat_config_file": str(self.napcat_config_file) if self.napcat_config_file else None,
-            "last_sync_ok": self.last_sync_ok, "last_sync_msg": self.last_sync_msg,
+            "napcat_config_dir": str(self.napcat_config_dir)
+            if self.napcat_config_dir
+            else None,
+            "napcat_config_file": str(self.napcat_config_file)
+            if self.napcat_config_file
+            else None,
+            "last_sync_ok": self.last_sync_ok,
+            "last_sync_msg": self.last_sync_msg,
             "last_sync_time": self.last_sync_time,
             "config": {**self.plugin.config, "sudo_password": ""},
         }

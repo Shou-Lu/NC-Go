@@ -7,3 +7,5 @@ _ref_snowluma*
 venv/
 .idea/
 .vscode/
+data/
+*.log

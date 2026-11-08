@@ -15,15 +15,20 @@ import aiohttp
 from astrbot.api import logger
 
 from .utils import (
-    IS_WINDOWS, IS_LINUX,    NAPCAT_RELEASE_BASE,
+    IS_WINDOWS,
+    IS_LINUX,
+    NAPCAT_RELEASE_BASE,
     DEFAULT_NAPCAT_VERSION,
     NAPCAT_MIRROR_CANDIDATES,
     LINUXQQ_DEB_URLS,
-    NAPCAT_SUPPORTED_QQ_MIN, NAPCAT_SUPPORTED_QQ_MAX,
+    NAPCAT_SUPPORTED_QQ_MIN,
+    NAPCAT_SUPPORTED_QQ_MAX,
     RECOMMENDED_LINUXQQ_VERSION,
     make_ssl_context,
-    get_linux_qq_version, get_linux_qq_build_code,
-    is_linux_qq_version_compatible, is_qq_installed,
+    get_linux_qq_version,
+    get_linux_qq_build_code,
+    is_linux_qq_version_compatible,
+    is_qq_installed,
     is_deb_build_compatible,
     DOCKER_WEBUI_PORT,
     LINUX_RUNTIME_DEPS,
@@ -49,23 +54,32 @@ class DownloadMixin:
 
     # ---------- 通用下载 ----------
 
-    async def _download_file(self, url: str, dest: Path,
-                             connect_timeout: int = 15, read_timeout: int = 60,
-                             progress_label: str = "",
-                             progress_index: int = 0,
-                             progress_total: int = 0,
-                             max_time: int = 900) -> bool:
+    async def _download_file(
+        self,
+        url: str,
+        dest: Path,
+        connect_timeout: int = 15,
+        read_timeout: int = 60,
+        progress_label: str = "",
+        progress_index: int = 0,
+        progress_total: int = 0,
+        max_time: int = 900,
+    ) -> bool:
         try:
             connector = aiohttp.TCPConnector(ssl=make_ssl_context(strict=False))
             async with aiohttp.ClientSession(connector=connector) as session:
                 async with session.get(
                     url,
                     timeout=aiohttp.ClientTimeout(
-                        total=max_time, sock_connect=connect_timeout,
-                        sock_read=read_timeout),
+                        total=max_time,
+                        sock_connect=connect_timeout,
+                        sock_read=read_timeout,
+                    ),
                 ) as resp:
                     if resp.status != 200:
-                        self.log_lines.append(f"[qq-install] {progress_label} HTTP {resp.status}")
+                        self.log_lines.append(
+                            f"[qq-install] {progress_label} HTTP {resp.status}"
+                        )
                         return False
                     total = resp.content_length or 0
                     got = 0
@@ -79,8 +93,12 @@ class DownloadMixin:
                                 self.download_state["downloaded_mb"] = got / 1024 / 1024
                                 self.download_state["speed_kbps"] = got / elapsed / 1024
                                 if total > 0:
-                                    self.download_state["total_mb"] = total / 1024 / 1024
-                                    self.download_state["percent"] = min(100, got * 100 // total)
+                                    self.download_state["total_mb"] = (
+                                        total / 1024 / 1024
+                                    )
+                                    self.download_state["percent"] = min(
+                                        100, got * 100 // total
+                                    )
                                 else:
                                     self.download_state["total_mb"] = 0.0
                                 self.download_state["current_mirror"] = progress_label
@@ -91,6 +109,56 @@ class DownloadMixin:
             self.log_lines.append(f"[qq-install] {progress_label} 异常: {e}")
             return False
 
+    async def _download_mirror_file(
+        self, url: str, dest: Path, *, strict: bool
+    ) -> Tuple[bool, str]:
+        """Download one mirror URL to *dest*.
+
+        Returns ``(ok, error)``. TLS verification is attempted first by the
+        caller; mirrors that fail certificate checks are retried only because
+        the final archive still has to pass SHA256 or ZIP integrity checks.
+        """
+        connector = aiohttp.TCPConnector(ssl=make_ssl_context(strict=strict))
+        try:
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get(
+                    url,
+                    timeout=aiohttp.ClientTimeout(
+                        total=None, sock_connect=10, sock_read=30
+                    ),
+                ) as resp:
+                    if resp.status != 200:
+                        return False, f"HTTP {resp.status}"
+                    total = resp.content_length or 0
+                    downloaded = 0
+                    start = time.time()
+                    last_update = start
+                    with open(dest, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(1024 * 128):
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            now = time.time()
+                            if now - last_update >= 0.4:
+                                elapsed = now - start
+                                speed = (
+                                    downloaded / elapsed / 1024 if elapsed > 0 else 0
+                                )
+                                self.download_state["downloaded_mb"] = (
+                                    downloaded / 1024 / 1024
+                                )
+                                self.download_state["speed_kbps"] = speed
+                                if total > 0:
+                                    self.download_state["total_mb"] = (
+                                        total / 1024 / 1024
+                                    )
+                                    self.download_state["percent"] = (
+                                        downloaded * 100 // total
+                                    )
+                                last_update = now
+                    return True, ""
+        except Exception as e:
+            return False, f"{type(e).__name__}: {e}"
+
     async def _validate_deb(self, path: Path) -> bool:
         try:
             with open(path, "rb") as f:
@@ -99,11 +167,12 @@ class DownloadMixin:
         except Exception:
             return False
 
-    # ---------- 版本解析与完整性校----------
+    # ---------- 版本解析与完整性校验 ----------
 
     @staticmethod
     def _sha256_file(path: Path) -> str:
         import hashlib
+
         h = hashlib.sha256()
         with open(path, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 256), b""):
@@ -130,28 +199,38 @@ class DownloadMixin:
                 async with session.get(
                     api_url,
                     timeout=aiohttp.ClientTimeout(total=15, sock_connect=8),
-                    headers={"Accept": "application/vnd.github+json",
-                             "User-Agent": "napcat-go-plugin"},
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "napcat-go-plugin",
+                    },
                 ) as resp:
                     if resp.status != 200:
                         raise RuntimeError(f"GitHub API HTTP {resp.status}")
                     data = await resp.json()
         except Exception as e:
-            self.log_lines.append(f"[download] ⚠GitHub API 解析版本失败({e})，回退 latest 直链")
+            self.log_lines.append(
+                f"[download] ⚠GitHub API 解析版本失败({e})，回退 latest 直链"
+            )
             result["tag"] = "latest"
-            result["zip_url"] = f"https://github.com/NapNeko/NapCatQQ/releases/latest/download/NapCat.Shell.zip"
+            result["zip_url"] = (
+                f"https://github.com/NapNeko/NapCatQQ/releases/latest/download/NapCat.Shell.zip"
+            )
             return result
 
         tag = data.get("tag_name") or version
         result["tag"] = tag
-        result["zip_url"] = f"https://github.com/NapNeko/NapCatQQ/releases/download/{tag}/NapCat.Shell.zip"
+        result["zip_url"] = (
+            f"https://github.com/NapNeko/NapCatQQ/releases/download/{tag}/NapCat.Shell.zip"
+        )
 
         # assets 里找 checksum
         assets = data.get("assets") or []
         checksum_url = None
         for a in assets:
             name = (a.get("name") or "").lower()
-            if "napcat.shell.zip" in name and (name.endswith(".sha256") or "sha256" in name):
+            if "napcat.shell.zip" in name and (
+                name.endswith(".sha256") or "sha256" in name
+            ):
                 checksum_url = a.get("browser_download_url")
                 break
             if name in ("sha256sums", "sha256sums.txt", "checksums.sha256"):
@@ -176,7 +255,9 @@ class DownloadMixin:
                                     result["sha256"] = parts[0].lower()
                                     break
             except Exception as e:
-                self.log_lines.append(f"[download] ⚠ 获取 checksum 失败({e})，跳过哈希校验")
+                self.log_lines.append(
+                    f"[download] ⚠ 获取 checksum 失败({e})，跳过哈希校验"
+                )
         return result
 
     async def list_napcat_releases(self) -> List[Dict[str, Any]]:
@@ -190,11 +271,15 @@ class DownloadMixin:
                 async with session.get(
                     f"{api_base}/releases?per_page=30",
                     timeout=aiohttp.ClientTimeout(total=20, sock_connect=8),
-                    headers={"Accept": "application/vnd.github+json",
-                             "User-Agent": "napcat-go-plugin"},
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "napcat-go-plugin",
+                    },
                 ) as resp:
                     if resp.status != 200:
-                        self.log_lines.append(f"[releases] GitHub API HTTP {resp.status}")
+                        self.log_lines.append(
+                            f"[releases] GitHub API HTTP {resp.status}"
+                        )
                         return []
                     data = await resp.json()
         except Exception as e:
@@ -208,12 +293,14 @@ class DownloadMixin:
             tag = (rel.get("tag_name") or "").strip()
             if not tag:
                 continue
-            out.append({
-                "tag": tag,
-                "name": (rel.get("name") or tag).strip(),
-                "published_at": rel.get("published_at") or "",
-                "prerelease": bool(rel.get("prerelease")),
-            })
+            out.append(
+                {
+                    "tag": tag,
+                    "name": (rel.get("name") or tag).strip(),
+                    "published_at": rel.get("published_at") or "",
+                    "prerelease": bool(rel.get("prerelease")),
+                }
+            )
         return out
 
     # ---------- NapCat 下载 / 解压（Windows + Linux 共用----------
@@ -321,7 +408,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         self.download_state["message"] = "正在下载 NapCat.Shell.zip"
         self.download_state["current_mirror"] = "准备下载"
         self.log_lines.append("[download] 开始下载 NapCat.Shell.zip ...")
-        self.log_lines.append(f"[download] 平台: {platform.system()}，目标目录: {self.napcat_dir}")
+        self.log_lines.append(
+            f"[download] 平台: {platform.system()}，目标目录: {self.napcat_dir}"
+        )
 
         try:
             self.napcat_dir.mkdir(parents=True, exist_ok=True)
@@ -339,7 +428,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
             if version and str(version).strip():
                 version = str(version).strip()
             else:
-                version = self.plugin.config.get("napcat_version", DEFAULT_NAPCAT_VERSION)
+                version = self.plugin.config.get(
+                    "napcat_version", DEFAULT_NAPCAT_VERSION
+                )
             if "/" in version:
                 fixed = version.split("/", 1)[0].strip()
                 if fixed:
@@ -372,19 +463,25 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                         self.log_lines.append("[download] ✘ 本地压缩包解压失败")
                     return ok
 
-            # 自动解析版本latest" -> GitHub API），并获取官SHA256 基准
+            # 自动解析版本（latest -> GitHub API），并获取官方 SHA256 基准
             self.log_lines.append(f"[download] 解析目标版本: {version}")
             rel = await self._resolve_napcat_release(version)
             tag = rel.get("tag") or version
-            official_zip = rel.get("zip_url") or f"{NAPCAT_RELEASE_BASE}/{version}/{filename}"
+            official_zip = (
+                rel.get("zip_url") or f"{NAPCAT_RELEASE_BASE}/{version}/{filename}"
+            )
             expected_sha = (rel.get("sha256") or "").lower() or None
             self.log_lines.append(f"[download] 解析到版本: {tag}")
             if expected_sha:
                 self.log_lines.append(f"[download] 官方 SHA256: {expected_sha[:16]}...")
             else:
-                self.log_lines.append("[download] ⚠ 该版本未发布 SHA256 清单，将仅做 zip 完整性校验")
+                self.log_lines.append(
+                    "[download] ⚠ 该版本未发布 SHA256 清单，将仅做 zip 完整性校验"
+                )
 
-            user_mirror = (self.plugin.config.get("napcat_download_mirror") or "").strip()
+            user_mirror = (
+                self.plugin.config.get("napcat_download_mirror") or ""
+            ).strip()
             prefixes: List[str] = []
             if user_mirror:
                 prefixes.append(user_mirror)
@@ -404,96 +501,87 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                 self.log_lines.append(f"[download] [{idx}/{len(urls)}] 尝试: {label}")
                 self.download_state["current_mirror"] = label
                 self.download_state["current_index"] = idx
-                # 官方源一律严 TLS；镜像源放开 TLS（但仍受 SHA256 校验兜底）
-                connector = aiohttp.TCPConnector(ssl=make_ssl_context(strict=(label == "official")))
-                session = aiohttp.ClientSession(connector=connector)
-                try:
-                    async with session:
-                        async with session.get(
-                            url,
-                            timeout=aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=30),
-                        ) as resp:
-                            if resp.status != 200:
-                                self.log_lines.append(
-                                    f"[download] [{idx}/{len(urls)}] {label} HTTP {resp.status}，换下一个"
-                                )
-                                continue
-                            total = resp.content_length or 0
-                            downloaded = 0
-                            start = time.time()
-                            last_update = start
-                            with open(download_path, "wb") as f:
-                                async for chunk in resp.content.iter_chunked(1024 * 128):
-                                    f.write(chunk)
-                                    downloaded += len(chunk)
-                                    now = time.time()
-                                    if now - last_update >= 0.4:
-                                        elapsed = now - start
-                                        speed = downloaded / elapsed / 1024 if elapsed > 0 else 0
-                                        self.download_state["downloaded_mb"] = downloaded / 1024 / 1024
-                                        self.download_state["speed_kbps"] = speed
-                                        if total > 0:
-                                            self.download_state["total_mb"] = total / 1024 / 1024
-                                            self.download_state["percent"] = downloaded * 100 // total
-                                        last_update = now
+                # 先严格校验证书；镜像证书异常时才降级重试，且下载结果仍需
+                # 通过 SHA256 或 ZIP 完整性校验才算成功。
+                ok, err = await self._download_mirror_file(
+                    url, download_path, strict=True
+                )
+                if not ok and label != "official" and any(
+                    k in err for k in ("SSL", "Cert", "certificate", "CERT")
+                ):
+                    self.log_lines.append(
+                        f"[download] [{idx}/{len(urls)}] {label} TLS 校验失败({err})，降级重试（仍会校验哈希）"
+                    )
+                    ok, err = await self._download_mirror_file(
+                        url, download_path, strict=False
+                    )
+                if not ok:
+                    self.log_lines.append(
+                        f"[download] [{idx}/{len(urls)}] {label} 失败: {err}"
+                    )
+                    try:
+                        if download_path.exists():
+                            download_path.unlink()
+                    except Exception:
+                        pass
+                    continue
 
-                    # ---- SHA256 校验（防中间人投毒）----
-                    if expected_sha:
-                        actual_sha = self._sha256_file(download_path)
-                        if actual_sha != expected_sha:
+                # ---- SHA256 校验（防中间人投毒）----
+                if expected_sha:
+                    actual_sha = self._sha256_file(download_path)
+                    if actual_sha != expected_sha:
+                        self.log_lines.append(
+                            f"[download] [{idx}/{len(urls)}] ✘ SHA256 不匹配（来源 {label}），疑似被篡改，丢弃"
+                        )
+                        try:
+                            download_path.unlink()
+                        except Exception:
+                            pass
+                        continue
+                    self.log_lines.append(
+                        f"[download] [{idx}/{len(urls)}] SHA256 校验通过"
+                    )
+                else:
+                    # 无官方哈希时，至少做 zip 结构完整性测试
+                    try:
+                        with zipfile.ZipFile(download_path) as zf:
+                            bad = zf.testzip()
+                        if bad is not None:
                             self.log_lines.append(
-                                f"[download] [{idx}/{len(urls)}] ✔SHA256 不匹配（来源 {label}），疑似被篡改，丢弃"
+                                f"[download] [{idx}/{len(urls)}] ✘ zip 损坏: {bad}"
                             )
                             try:
                                 download_path.unlink()
                             except Exception:
                                 pass
                             continue
-                        self.log_lines.append(f"[download] [{idx}/{len(urls)}] SHA256 校验通过")
-                    else:
-                        # 无官方哈希时，至少做 zip 结构完整性测试
-                        try:
-                            with zipfile.ZipFile(download_path) as zf:
-                                bad = zf.testzip()
-                            if bad is not None:
-                                self.log_lines.append(f"[download] [{idx}/{len(urls)}] ✘ zip 损坏: {bad}")
-                                try:
-                                    download_path.unlink()
-                                except Exception:
-                                    pass
-                                continue
-                        except Exception as e:
-                            self.log_lines.append(f"[download] [{idx}/{len(urls)}] ✘ 非有效 zip: {e}")
-                            try:
-                                download_path.unlink()
-                            except Exception:
-                                pass
-                            continue
-
-                    success = await self._extract_napcat(download_path)
-                    if success:
+                    except Exception as e:
+                        self.log_lines.append(
+                            f"[download] [{idx}/{len(urls)}] ✘ 非有效 zip: {e}"
+                        )
                         try:
                             download_path.unlink()
                         except Exception:
                             pass
-                        self.download_state["phase"] = "done"
-                        self.download_state["percent"] = 100
-                        self.log_lines.append(f"[download] ✔ 下载并解压成功（版本 {tag}，来源: {label}）")
-                        return True
+                        continue
+
+                success = await self._extract_napcat(download_path)
+                if success:
                     try:
-                        if download_path.exists():
-                            download_path.unlink()
+                        download_path.unlink()
                     except Exception:
                         pass
-                    continue
-                except Exception as e:
-                    self.log_lines.append(f"[download] [{idx}/{len(urls)}] {label} 失败: {e}")
-                    try:
-                        if download_path.exists():
-                            download_path.unlink()
-                    except Exception:
-                        pass
-                    continue
+                    self.download_state["phase"] = "done"
+                    self.download_state["percent"] = 100
+                    self.log_lines.append(
+                        f"[download] ✔ 下载并解压成功（版本 {tag}，来源: {label}）"
+                    )
+                    return True
+                try:
+                    if download_path.exists():
+                        download_path.unlink()
+                except Exception:
+                    pass
 
             self.log_lines.append("[download] ✔所有镜像均失败")
             self.download_state["phase"] = "failed"
@@ -538,7 +626,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         for args in (["dpkg", "-r", "linuxqq"], ["dpkg", "--purge", "linuxqq"]):
             self.log_lines.append(f"[qq-compat] 执行: sudo {' '.join(args)}")
             try:
-                code, text = await linux_tools.run_sudo(self.plugin, args, pw, timeout=180)
+                code, text = await linux_tools.run_sudo(
+                    self.plugin, args, pw, timeout=180
+                )
                 for ln in (text or "").splitlines()[-5:]:
                     if ln.strip():
                         self.log_lines.append(f"[qq-compat] {ln.strip()}")
@@ -574,8 +664,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         else:
             self.log_lines.append("[qq-compat] 未检测到 LinuxQQ，准备安装推荐版本 ...")
 
-        for stale in list(self.napcat_dir.glob("linuxqq*.deb")) + \
-                     list(self.napcat_dir.glob("QQ*.deb")):
+        for stale in list(self.napcat_dir.glob("linuxqq*.deb")) + list(
+            self.napcat_dir.glob("QQ*.deb")
+        ):
             try:
                 self.log_lines.append(f"[qq-compat] 移除旧 deb 缓存: {stale.name}")
                 stale.unlink()
@@ -590,7 +681,7 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         new_code = get_linux_qq_build_code()
         if is_linux_qq_version_compatible():
             self.log_lines.append(
-            f"[qq-compat] ✔ 安装完成，当前 QQ {new_ver} (build {new_code}) 已兼容"
+                f"[qq-compat] ✔ 安装完成，当前 QQ {new_ver} (build {new_code}) 已兼容"
             )
             return True
         self.log_lines.append(
@@ -619,8 +710,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         deb_path = self.napcat_dir / "linuxqq.deb"
         downloaded = False
 
-        manual = list(self.napcat_dir.glob("linuxqq*.deb")) + \
-                 list(self.napcat_dir.glob("QQ*.deb"))
+        manual = list(self.napcat_dir.glob("linuxqq*.deb")) + list(
+            self.napcat_dir.glob("QQ*.deb")
+        )
         if manual:
             for m in manual:
                 if not await self._validate_deb(m):
@@ -653,9 +745,13 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
 
             for idx, (url, label) in enumerate(candidates, 1):
                 short = url[:90] + ("..." if len(url) > 90 else "")
-                self.log_lines.append(f"[qq-install] [{idx}/{total_urls}] 尝试 ({label}): {short}")
+                self.log_lines.append(
+                    f"[qq-install] [{idx}/{total_urls}] 尝试 ({label}): {short}"
+                )
                 self.download_state["current_index"] = idx
-                self.download_state["current_mirror"] = f"LinuxQQ ({idx}/{total_urls}) - {label}"
+                self.download_state["current_mirror"] = (
+                    f"LinuxQQ ({idx}/{total_urls}) - {label}"
+                )
                 try:
                     if deb_path.exists():
                         try:
@@ -666,17 +762,26 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                     pass
 
                 ok = await self._download_file(
-                    url, deb_path, connect_timeout=15, read_timeout=60,
+                    url,
+                    deb_path,
+                    connect_timeout=15,
+                    read_timeout=60,
                     progress_label=f"LinuxQQ ({idx}/{total_urls})",
-                    progress_index=idx, progress_total=total_urls, max_time=900,
+                    progress_index=idx,
+                    progress_total=total_urls,
+                    max_time=900,
                 )
                 if not ok:
                     continue
                 if not deb_path.exists() or deb_path.stat().st_size < 1024:
-                    self.log_lines.append(f"[qq-install] [{idx}/{total_urls}] ✔文件过小")
+                    self.log_lines.append(
+                        f"[qq-install] [{idx}/{total_urls}] ✔文件过小"
+                    )
                     continue
                 if not await self._validate_deb(deb_path):
-                    self.log_lines.append(f"[qq-install] [{idx}/{total_urls}] ✘ 不是有效 deb，换下一个")
+                    self.log_lines.append(
+                        f"[qq-install] [{idx}/{total_urls}] ✘ 不是有效 deb，换下一个"
+                    )
                     try:
                         deb_path.unlink()
                     except Exception:
@@ -718,8 +823,12 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                 + str(self.napcat_dir)
             )
             self.log_lines.append("[qq-install] 手动下载地址（浏览器打开，任选其一）：")
-            self.log_lines.append("[qq-install]   https://github.com/SATA-F5/NC-Go/releases")
-            self.log_lines.append("[qq-install]   https://github.com/Rodert/qq-versions/releases")
+            self.log_lines.append(
+                "[qq-install]   https://github.com/SATA-F5/NC-Go/releases"
+            )
+            self.log_lines.append(
+                "[qq-install]   https://github.com/Rodert/qq-versions/releases"
+            )
             self.download_state["phase"] = "failed"
             self.download_state["message"] = "LinuxQQ 下载失败"
             return False
@@ -736,7 +845,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
 
         try:
             self.log_lines.append("[qq-install] 执行: sudo apt-get update")
-            await linux_tools.run_sudo(self.plugin, ["apt-get", "update"], pw, timeout=300)
+            await linux_tools.run_sudo(
+                self.plugin, ["apt-get", "update"], pw, timeout=300
+            )
 
             self.log_lines.append(f"[qq-install] 执行: sudo dpkg -i {deb_path.name}")
             dpkg_rc, text = await linux_tools.run_sudo(
@@ -747,16 +858,29 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                     self.log_lines.append(f"[qq-install] {ln.strip()}")
 
             if dpkg_rc != 0:
-                self.log_lines.append("[qq-install] dpkg 返回非 0，执行 apt-get -f install -y 补依赖 ...")
+                self.log_lines.append(
+                    "[qq-install] dpkg 返回非 0，执行 apt-get -f install -y 补依赖 ..."
+                )
                 rc2, text = await linux_tools.run_sudo(
-                    self.plugin, ["env", "DEBIAN_FRONTEND=noninteractive",
-                                  "apt-get", "-f", "install", "-y"], pw, timeout=600
+                    self.plugin,
+                    [
+                        "env",
+                        "DEBIAN_FRONTEND=noninteractive",
+                        "apt-get",
+                        "-f",
+                        "install",
+                        "-y",
+                    ],
+                    pw,
+                    timeout=600,
                 )
                 for ln in (text or "").splitlines()[-8:]:
                     if ln.strip():
                         self.log_lines.append(f"[qq-install] {ln.strip()}")
                 if rc2 != 0:
-                    self.log_lines.append("[qq-install] ⚠ apt-get -f install 未成功，继续检测安装结果")
+                    self.log_lines.append(
+                        "[qq-install] ⚠ apt-get -f install 未成功，继续检测安装结果"
+                    )
 
             if is_qq_installed():
                 installed_ver = get_linux_qq_version()
@@ -796,7 +920,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         if not has_content:
             return True
 
-        if self._is_new_style_install(inner) or self._is_new_style_install(self.napcat_dir):
+        if self._is_new_style_install(inner) or self._is_new_style_install(
+            self.napcat_dir
+        ):
             self.log_lines.append(f"[install] {inner} 已包含 launcher，跳过备份")
             return True
 
@@ -859,8 +985,14 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         if pw and await self._sudo_warm_async(pw):
             code, out = await linux_tools.run_sudo(
                 self.plugin,
-                ["env", "DEBIAN_FRONTEND=noninteractive",
-                 "apt-get", "install", "-y", *LINUX_RUNTIME_DEPS],
+                [
+                    "env",
+                    "DEBIAN_FRONTEND=noninteractive",
+                    "apt-get",
+                    "install",
+                    "-y",
+                    *LINUX_RUNTIME_DEPS,
+                ],
                 pw,
                 timeout=600,
             )
@@ -879,7 +1011,9 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
             return False
 
         # 3) 下载 + SHA256 校验 + 解压 NapCat.Shell.zip
-        self.log_lines.append("[install] 开始下载 NapCat.Shell.zip（自动解析最新版，含 SHA256 校验）...")
+        self.log_lines.append(
+            "[install] 开始下载 NapCat.Shell.zip（自动解析最新版，含 SHA256 校验）..."
+        )
         try:
             ok_zip = await self.download_napcat(version=version)
         except Exception as e:

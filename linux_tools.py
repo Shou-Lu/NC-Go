@@ -1,8 +1,9 @@
 """Linux-only helpers: one-shot sudo commands and runtime dependency install.
 
-The sudo password is never stored on disk. Callers receive the plaintext
-password from the encrypted (RSA) web request, pass it into these helpers,
-and drop it as soon as the command returns.
+The sudo password is optionally persisted by the plugin in encrypted form
+(machine-derived key) inside the plugin's own config.json. Helpers here only
+receive the plaintext password for the duration of a single command and never
+write it to logs or to any file.
 """
 
 from __future__ import annotations
@@ -108,7 +109,11 @@ def install_linux_deps_sync(plugin: Any, password: str = "") -> Dict[str, Any]:
     if not apt:
         return {"ok": False, "message": "未找到 apt-get（仅支持 Debian / Ubuntu）"}
 
-    packages = list(LINUX_RUNTIME_DEPS) if not isinstance(LINUX_RUNTIME_DEPS, str) else LINUX_RUNTIME_DEPS.split()
+    packages = (
+        list(LINUX_RUNTIME_DEPS)
+        if not isinstance(LINUX_RUNTIME_DEPS, str)
+        else LINUX_RUNTIME_DEPS.split()
+    )
     steps: List[Dict[str, Any]] = []
 
     code, output = run_sudo_sync(plugin, ["apt-get", "update"], password, timeout=300)
@@ -117,18 +122,33 @@ def install_linux_deps_sync(plugin: Any, password: str = "") -> Dict[str, Any]:
     # apt-get update may fail on a stale mirror while install still works.
     code, output = run_sudo_sync(
         plugin,
-        ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", *packages],
+        [
+            "env",
+            "DEBIAN_FRONTEND=noninteractive",
+            "apt-get",
+            "install",
+            "-y",
+            *packages,
+        ],
         password,
         timeout=900,
     )
     steps.append(
-        {"command": "apt-get install -y " + " ".join(packages), "ok": code == 0, "output": output}
+        {
+            "command": "apt-get install -y " + " ".join(packages),
+            "ok": code == 0,
+            "output": output,
+        }
     )
 
     missing = missing_linux_deps()
     if missing:
         steps.append(
-            {"command": "检查依赖", "ok": False, "output": "缺少: " + ", ".join(missing)}
+            {
+                "command": "检查依赖",
+                "ok": False,
+                "output": "缺少: " + ", ".join(missing),
+            }
         )
 
     ok = code == 0 and not missing
