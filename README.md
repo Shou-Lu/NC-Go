@@ -70,4 +70,4 @@ https://github.com/NapNeko/NapCatQQ/releases
 
 ## 许可
 
-GPL-3.0，详见 [LICENSE](LICENSE)。
+AGPL-3.0，详见 [LICENSE](LICENSE)。

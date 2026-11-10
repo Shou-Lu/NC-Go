@@ -4,6 +4,7 @@
 3. 插件包改为带顶层目录的 ZIP 结构，兼容 AstrBot 本地上传安装
 4. 按 AstrBot 插件发布规范整理：metadata 描述与 README 更新、补充界面复用来源与数据/权限说明，代码使用 ruff 格式化
 5. 仓库地址更新为 https://github.com/Shou-Lu/NC-Go，插件作者名称由 SATA-F5 更改为 守禄；插件标识符 `pulid_napcat_go_to_astrbot` 保持不变，旧仓库地址会自动重定向
+6. 插件许可证由 GPL-3.0 更改为 GNU Affero General Public License v3.0（AGPL-3.0）
 
 # 7.5.0
 1. 版本号更新为 7.5.0
