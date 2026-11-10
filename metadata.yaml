@@ -3,8 +3,8 @@ display_name: NapCat Go
 short_desc: 一键部署与连接 NapCat，解决反向 WS 配置难题
 desc: 一键完成 NapCat 的下载、安装、启动、QQ 登录与 OneBot v11 反向 WebSocket 配置，支持 Windows / Linux。Linux 本地模式需要 sudo 权限，并可能按 NapCat 兼容版本要求重装 QQ。
 version: 7.5.1
-author: SATA-F5
-repo: https://github.com/SATA-F5/NC-Go
+author: 守禄
+repo: https://github.com/Shou-Lu/NC-Go
 astrbot_version: ">=4.24.1"
 support_platforms:
   - aiocqhttp

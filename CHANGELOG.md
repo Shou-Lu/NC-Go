@@ -3,6 +3,7 @@
 2. `/napcat` 指令状态输出改为中文，包含平台、部署方式、QQ 版本与兼容性、NapCat 状态、登录状态和配置目录
 3. 插件包改为带顶层目录的 ZIP 结构，兼容 AstrBot 本地上传安装
 4. 按 AstrBot 插件发布规范整理：metadata 描述与 README 更新、补充界面复用来源与数据/权限说明，代码使用 ruff 格式化
+5. 仓库地址更新为 https://github.com/Shou-Lu/NC-Go，插件作者名称由 SATA-F5 更改为 守禄；插件标识符 `pulid_napcat_go_to_astrbot` 保持不变，旧仓库地址会自动重定向
 
 # 7.5.0
 1. 版本号更新为 7.5.0
@@ -11,7 +12,7 @@
 4. 修复 Windows 下载 NapCat 时 `ssl_ctx` 未定义导致的 `Download failed`；下载器统一直接创建 SSL 上下文，并在日志中记录当前平台与目标目录
 
 # 7.4.2
-1. QQ Linux deb 下载源固定为 SATA-F5/NC-Go 仓库（QQ_3.2.34_Linux_amd64.deb），保留多镜像加速回退
+1. QQ Linux deb 下载源固定为 Shou-Lu/NC-Go 仓库（QQ_3.2.34_Linux_amd64.deb），保留多镜像加速回退
 2. 版本选择器移到「配置」弹窗内的「版本管理」分组，替换为自定义玻璃风下拉（带搜索框）
 3. 安装新版本前自动清理旧版本文件（保留 config 配置目录），不再需要单独的卸载按钮
 4. 所有危险操作（停止/启动/同步/安装/重启/清理/保存配置）改为插件内置弹窗确认，不再依赖浏览器原生 confirm

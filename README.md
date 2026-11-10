@@ -65,7 +65,7 @@ https://github.com/NapNeko/NapCatQQ/releases
 
 ## 致谢
 
-- 界面布局与交互参考同作者的 [Snowluma Go](https://github.com/SATA-F5/Snowluma-Go) 插件，样式表复用自该项目
+- 界面布局与交互参考同作者的 [Snowluma Go](https://github.com/Shou-Lu/Snowluma-Go) 插件，样式表复用自该项目
 - NapCat 项目：https://github.com/NapNeko/NapCatQQ
 
 ## 许可
