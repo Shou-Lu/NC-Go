@@ -48,6 +48,8 @@ from .utils import (
     RECOMMENDED_LINUXQQ_VERSION,
     NAPCAT_MIRROR_CANDIDATES,
     DEFAULT_NAPCAT_VERSION,
+    DEFAULT_DOWNLOAD_MIRROR,
+    LEGACY_DOWNLOAD_MIRROR,
 )
 from .napcat_manager import NapCatManager
 from .config_syncer import ConfigSyncer
@@ -463,7 +465,7 @@ class NapCatGoPlugin(Star):
                     payload.get(
                         "napcat_download_mirror",
                         self.config.get(
-                            "napcat_download_mirror", "https://gh.zwy.one/"
+                            "napcat_download_mirror", DEFAULT_DOWNLOAD_MIRROR
                         ),
                     )
                 ),
@@ -889,6 +891,14 @@ class NapCatGoPlugin(Star):
 
         # 单一稳定版本供应：旧配置里的 latest/其他版本统一改回固定版本
         final["napcat_version"] = DEFAULT_NAPCAT_VERSION
+
+        # 旧的默认镜像已失效，沿用旧默认值的配置自动切到新默认镜像
+        if (
+            not str(final.get("napcat_download_mirror") or "").strip()
+            or str(final.get("napcat_download_mirror")).strip()
+            == LEGACY_DOWNLOAD_MIRROR
+        ):
+            final["napcat_download_mirror"] = DEFAULT_DOWNLOAD_MIRROR
 
         to_save = dict(final)
         to_save["__config_version__"] = CONFIG_VERSION
