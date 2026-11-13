@@ -33,14 +33,14 @@ NAPCAT_PINNED_SHA256 = (
 DEFAULT_NAPCAT_VERSION = NAPCAT_PINNED_VERSION
 # 旧默认镜像 gh.zwy.one 已不可用，默认改为实测可用的加速镜像
 LEGACY_DOWNLOAD_MIRROR = "https://gh.zwy.one/"
-DEFAULT_DOWNLOAD_MIRROR = "https://gh-proxy.com/"
+DEFAULT_DOWNLOAD_MIRROR = "https://githubproxy.cc/"
 
 # 顺序即尝试顺序：把实测可用的镜像放在前面，减少失败重试耗时
 NAPCAT_MIRROR_CANDIDATES = [
-    "https://gh-proxy.com/",
     "https://githubproxy.cc/",
     "https://cdn.crashmc.com/",
     "https://git.yylx.win/",
+    "https://gh-proxy.com/",
     "https://ghproxy.net/",
     "https://gh.h233.eu.org/",
     "https://gh.zwy.one/",
