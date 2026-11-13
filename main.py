@@ -47,12 +47,13 @@ from .utils import (
     NAPCAT_SUPPORTED_QQ_MAX,
     RECOMMENDED_LINUXQQ_VERSION,
     NAPCAT_MIRROR_CANDIDATES,
+    DEFAULT_NAPCAT_VERSION,
 )
 from .napcat_manager import NapCatManager
 from .config_syncer import ConfigSyncer
 from . import linux_tools
 
-PLUGIN_CODE_VERSION = "2026-11-08-v751"
+PLUGIN_CODE_VERSION = "2026-11-14-v760"
 
 
 class NapCatGoPlugin(Star):
@@ -468,9 +469,10 @@ class NapCatGoPlugin(Star):
                 ),
                 "napcat_version": str(
                     payload.get(
-                        "napcat_version", self.config.get("napcat_version", "latest")
+                        "napcat_version",
+                        self.config.get("napcat_version", DEFAULT_NAPCAT_VERSION),
                     )
-                    or "latest"
+                    or DEFAULT_NAPCAT_VERSION
                 ).strip(),
             }
         )
@@ -732,16 +734,14 @@ class NapCatGoPlugin(Star):
             self.config["napcat_download_mirror"] = str(
                 payload.get("napcat_download_mirror") or ""
             ).strip()
-        if "napcat_version" in payload:
-            self.config["napcat_version"] = (
-                str(payload.get("napcat_version") or "latest").strip() or "latest"
-            )
+        # 单一稳定版本供应：版本固定为 4.18.5，忽略前端传入的版本值
+        self.config["napcat_version"] = DEFAULT_NAPCAT_VERSION
         self._save_config(self.config)
         return json_response(
             {
                 "ok": True,
                 "napcat_download_mirror": self.config.get("napcat_download_mirror", ""),
-                "napcat_version": self.config.get("napcat_version", "latest"),
+                "napcat_version": DEFAULT_NAPCAT_VERSION,
             }
         )
 
@@ -886,6 +886,9 @@ class NapCatGoPlugin(Star):
 
         if final.get("ui_theme") not in ("auto", "light", "dark"):
             final["ui_theme"] = "auto"
+
+        # 单一稳定版本供应：旧配置里的 latest/其他版本统一改回固定版本
+        final["napcat_version"] = DEFAULT_NAPCAT_VERSION
 
         to_save = dict(final)
         to_save["__config_version__"] = CONFIG_VERSION

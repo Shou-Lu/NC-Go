@@ -943,7 +943,7 @@
         S.releases = (releases && releases.releases) || [];
         const mirrorInput = $("dl-mirror-input");
         if (mirrorInput) mirrorInput.value = (cfg && cfg.napcat_download_mirror) || "";
-        populateVersions((cfg && cfg.napcat_version) || "latest");
+        populateVersions((cfg && cfg.napcat_version) || "4.18.5");
         renderMirrorMenu();
     }
 
@@ -958,19 +958,18 @@
         const select = $("dl-version");
         if (!select) return;
         select.innerHTML = "";
-        const latest = document.createElement("option");
-        latest.value = "latest";
-        latest.textContent = "latest（最新版）";
-        select.appendChild(latest);
-        S.releases.forEach((release) => {
+        const list = S.releases.length
+            ? S.releases
+            : [{ tag: "4.18.5", name: "NapCat 4.18.5（稳定版）" }];
+        list.forEach((release) => {
             const option = document.createElement("option");
             option.value = release.tag;
-            option.textContent = release.tag + (release.prerelease ? "（预发布）" : "")
-                + (release.published_at ? " · " + String(release.published_at).slice(0, 10) : "");
+            option.textContent = (release.name || ("NapCat " + release.tag))
+                + (release.prerelease ? "（预发布）" : "");
             select.appendChild(option);
         });
-        const wanted = selected || "latest";
-        select.value = Array.from(select.options).some((o) => o.value === wanted) ? wanted : "latest";
+        const wanted = selected || list[0].tag;
+        select.value = Array.from(select.options).some((o) => o.value === wanted) ? wanted : list[0].tag;
     }
 
     function renderMirrorMenu() {
@@ -1030,7 +1029,7 @@
             toast("NapCat 正在运行，请先停止后再安装新版本", "err", 4000);
             return;
         }
-        const version = ($("dl-version") || {}).value || "latest";
+        const version = ($("dl-version") || {}).value || "4.18.5";
         const installed = !(S.status && S.status.napcat_installed === false);
         const message = installed
             ? `安装 NapCat 版本「${version}」？旧程序文件会被替换，config 配置会保留。`
@@ -1377,7 +1376,7 @@
         }
         const versionSelect = $("dl-version");
         if (versionSelect) versionSelect.addEventListener("change", () => {
-            saveDownloadOptions({ napcat_version: versionSelect.value || "latest" }, false);
+            saveDownloadOptions({ napcat_version: versionSelect.value || "4.18.5" }, false);
         });
 
         document.addEventListener("click", (event) => {

@@ -9,6 +9,8 @@
 
 > Linux 本地模式可能需要重装 QQ，以匹配 NapCat 要求的兼容版本。插件在检测到版本不兼容时会在操作前提示数据风险，确认后才会继续。
 
+> 本插件只供应 **NapCat 4.18.5** 单一稳定版本，不再跟随上游更新。上游频繁发版且新版会较大概率触发 QQ 登录失效（被踢下线），因此版本固定，安装包由本仓库 Release 长期备份。
+
 ## 前置要求
 
 1. Windows 已安装 **QQNT 9.9.27+**；Linux 已配置好 sudo 密码（安装、启动、同步会用到 apt 与提权命令）
@@ -16,7 +18,7 @@
    - 密码仅在本地加密保存，不会写日志或回显
 2. Python 环境（AstrBot 自带），依赖见 `requirements.txt`
 3. 已经在 AstrBot 中创建好 aiocqhttp 机器人
-4. Linux 模式使用的 `QQ_3.2.34_Linux_amd64.deb` 来自本插件 GitHub Release 的固定兼容版本备份，原始来源为官方 LinuxQQ 安装包，仅用于保证 NapCat 兼容版本可复现下载
+4. Linux 模式使用的 `QQ_3.2.34_Linux_amd64.deb` 与 `NapCat.Shell.zip`（NapCat 4.18.5）均来自本插件 GitHub Release 的固定版本备份，原始来源为官方安装包，仅用于保证兼容版本可复现下载
 
 ## 安装插件
 

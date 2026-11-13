@@ -18,6 +18,9 @@ from .utils import (
     IS_WINDOWS,
     IS_LINUX,
     NAPCAT_RELEASE_BASE,
+    NAPCAT_PINNED_VERSION,
+    NAPCAT_PINNED_RELEASE_TAG,
+    NAPCAT_PINNED_SHA256,
     DEFAULT_NAPCAT_VERSION,
     NAPCAT_MIRROR_CANDIDATES,
     LINUXQQ_DEB_URLS,
@@ -180,128 +183,29 @@ class DownloadMixin:
         return h.hexdigest()
 
     async def _resolve_napcat_release(self, version: str) -> Dict[str, Any]:
-        """通过 GitHub API 解析 NapCat 版本，返回 {tag, zip_url, sha256}。
-        - version == "latest"：查 /releases/latest 拿 tag_name。
-        - 否则按指定 tag 查 /releases/tags/<tag>。
-        - 同时从 release assets 里找 .sha256 / SHA256SUMS 文件，作为校验基准。
-        - API 不可达时回退到 releases/latest/download/ 直链（无 sha256 基准）。
+        """返回固定版本的下载信息（单一稳定版本供应）。
+
+        插件只供应 NapCat 4.18.5：该版本由本仓库 Releases 长期备份，
+        不再查询上游 GitHub API，也不跟随 latest，避免新版频繁触发
+        QQ 登录失效。
         """
-        result: Dict[str, Any] = {"tag": version, "zip_url": "", "sha256": None}
-        api_base = "https://api.github.com/repos/NapNeko/NapCatQQ"
-        if version == "latest":
-            api_url = f"{api_base}/releases/latest"
-        else:
-            api_url = f"{api_base}/releases/tags/{version}"
-
-        try:
-            connector = aiohttp.TCPConnector(ssl=make_ssl_context(strict=True))
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.get(
-                    api_url,
-                    timeout=aiohttp.ClientTimeout(total=15, sock_connect=8),
-                    headers={
-                        "Accept": "application/vnd.github+json",
-                        "User-Agent": "napcat-go-plugin",
-                    },
-                ) as resp:
-                    if resp.status != 200:
-                        raise RuntimeError(f"GitHub API HTTP {resp.status}")
-                    data = await resp.json()
-        except Exception as e:
-            self.log_lines.append(
-                f"[download] ⚠GitHub API 解析版本失败({e})，回退 latest 直链"
-            )
-            result["tag"] = "latest"
-            result["zip_url"] = (
-                f"https://github.com/NapNeko/NapCatQQ/releases/latest/download/NapCat.Shell.zip"
-            )
-            return result
-
-        tag = data.get("tag_name") or version
-        result["tag"] = tag
-        result["zip_url"] = (
-            f"https://github.com/NapNeko/NapCatQQ/releases/download/{tag}/NapCat.Shell.zip"
-        )
-
-        # assets 里找 checksum
-        assets = data.get("assets") or []
-        checksum_url = None
-        for a in assets:
-            name = (a.get("name") or "").lower()
-            if "napcat.shell.zip" in name and (
-                name.endswith(".sha256") or "sha256" in name
-            ):
-                checksum_url = a.get("browser_download_url")
-                break
-            if name in ("sha256sums", "sha256sums.txt", "checksums.sha256"):
-                checksum_url = a.get("browser_download_url")
-                break
-        if checksum_url:
-            try:
-                async with aiohttp.ClientSession(connector=connector) as session2:
-                    async with session2.get(
-                        checksum_url,
-                        timeout=aiohttp.ClientTimeout(total=15, sock_connect=8),
-                    ) as r:
-                        if r.status == 200:
-                            text = (await r.text()).strip()
-                            # 形如 "<hash>  NapCat.Shell.zip"
-                            for line in text.splitlines():
-                                line = line.strip()
-                                if not line:
-                                    continue
-                                parts = line.split()
-                                if len(parts) >= 1 and len(parts[0]) == 64:
-                                    result["sha256"] = parts[0].lower()
-                                    break
-            except Exception as e:
-                self.log_lines.append(
-                    f"[download] ⚠ 获取 checksum 失败({e})，跳过哈希校验"
-                )
-        return result
+        zip_url = f"{NAPCAT_RELEASE_BASE}/{NAPCAT_PINNED_RELEASE_TAG}/NapCat.Shell.zip"
+        return {
+            "tag": NAPCAT_PINNED_VERSION,
+            "zip_url": zip_url,
+            "sha256": (NAPCAT_PINNED_SHA256 or "").lower() or None,
+        }
 
     async def list_napcat_releases(self) -> List[Dict[str, Any]]:
-        """通过 GitHub API 列出 NapCat 可下载版本（最多 30 条）。
-        返回 [{tag, name, published_at, prerelease}, ...]，失败返回空列表。
-        """
-        api_base = "https://api.github.com/repos/NapNeko/NapCatQQ"
-        try:
-            connector = aiohttp.TCPConnector(ssl=make_ssl_context(strict=True))
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.get(
-                    f"{api_base}/releases?per_page=30",
-                    timeout=aiohttp.ClientTimeout(total=20, sock_connect=8),
-                    headers={
-                        "Accept": "application/vnd.github+json",
-                        "User-Agent": "napcat-go-plugin",
-                    },
-                ) as resp:
-                    if resp.status != 200:
-                        self.log_lines.append(
-                            f"[releases] GitHub API HTTP {resp.status}"
-                        )
-                        return []
-                    data = await resp.json()
-        except Exception as e:
-            self.log_lines.append(f"[releases] 拉取版本列表失败: {e}")
-            return []
-
-        out: List[Dict[str, Any]] = []
-        for rel in data:
-            if not isinstance(rel, dict):
-                continue
-            tag = (rel.get("tag_name") or "").strip()
-            if not tag:
-                continue
-            out.append(
-                {
-                    "tag": tag,
-                    "name": (rel.get("name") or tag).strip(),
-                    "published_at": rel.get("published_at") or "",
-                    "prerelease": bool(rel.get("prerelease")),
-                }
-            )
-        return out
+        """返回可安装的 NapCat 版本列表（单一稳定版本：4.18.5）。"""
+        return [
+            {
+                "tag": NAPCAT_PINNED_VERSION,
+                "name": f"NapCat {NAPCAT_PINNED_VERSION}（稳定版）",
+                "published_at": "",
+                "prerelease": False,
+            }
+        ]
 
     # ---------- NapCat 下载 / 解压（Windows + Linux 共用----------
 
@@ -425,23 +329,26 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
         self._clean_old_napcat_install()
 
         try:
+            # 单一稳定版本供应：忽略外部传入的版本，始终安装固定版本 4.18.5
+            requested = ""
             if version and str(version).strip():
-                version = str(version).strip()
+                requested = str(version).strip()
             else:
-                version = self.plugin.config.get(
-                    "napcat_version", DEFAULT_NAPCAT_VERSION
+                requested = str(
+                    self.plugin.config.get("napcat_version", DEFAULT_NAPCAT_VERSION)
+                    or ""
+                ).strip()
+            if requested and requested != NAPCAT_PINNED_VERSION:
+                self.log_lines.append(
+                    f"[download] 本插件仅供应 NapCat {NAPCAT_PINNED_VERSION}，已忽略请求版本 {requested}"
                 )
-            if "/" in version:
-                fixed = version.split("/", 1)[0].strip()
-                if fixed:
-                    version = fixed
-                    self.plugin.config["napcat_version"] = fixed
-                    try:
-                        self.plugin._save_config(self.plugin.config)
-                    except Exception:
-                        pass
-                else:
-                    version = DEFAULT_NAPCAT_VERSION
+            version = NAPCAT_PINNED_VERSION
+            if self.plugin.config.get("napcat_version") != NAPCAT_PINNED_VERSION:
+                self.plugin.config["napcat_version"] = NAPCAT_PINNED_VERSION
+                try:
+                    self.plugin._save_config(self.plugin.config)
+                except Exception:
+                    pass
 
             filename = "NapCat.Shell.zip"
 
@@ -463,20 +370,23 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                         self.log_lines.append("[download] ✘ 本地压缩包解压失败")
                     return ok
 
-            # 自动解析版本（latest -> GitHub API），并获取官方 SHA256 基准
-            self.log_lines.append(f"[download] 解析目标版本: {version}")
+            # 固定版本：直接使用本仓库 release 资产，并附带固定 SHA256 基准
+            self.log_lines.append(f"[download] 目标版本: {version}（单一稳定版本）")
             rel = await self._resolve_napcat_release(version)
             tag = rel.get("tag") or version
             official_zip = (
-                rel.get("zip_url") or f"{NAPCAT_RELEASE_BASE}/{version}/{filename}"
+                rel.get("zip_url")
+                or f"{NAPCAT_RELEASE_BASE}/{NAPCAT_PINNED_RELEASE_TAG}/{filename}"
             )
             expected_sha = (rel.get("sha256") or "").lower() or None
-            self.log_lines.append(f"[download] 解析到版本: {tag}")
+            self.log_lines.append(f"[download] 目标版本: {tag}（固定稳定版）")
             if expected_sha:
-                self.log_lines.append(f"[download] 官方 SHA256: {expected_sha[:16]}...")
+                self.log_lines.append(
+                    f"[download] 校验基准 SHA256: {expected_sha[:16]}..."
+                )
             else:
                 self.log_lines.append(
-                    "[download] ⚠ 该版本未发布 SHA256 清单，将仅做 zip 完整性校验"
+                    "[download] ⚠ 未配置 SHA256 基准，将仅做 zip 完整性校验"
                 )
 
             user_mirror = (
@@ -506,8 +416,10 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
                 ok, err = await self._download_mirror_file(
                     url, download_path, strict=True
                 )
-                if not ok and label != "official" and any(
-                    k in err for k in ("SSL", "Cert", "certificate", "CERT")
+                if (
+                    not ok
+                    and label != "official"
+                    and any(k in err for k in ("SSL", "Cert", "certificate", "CERT"))
                 ):
                     self.log_lines.append(
                         f"[download] [{idx}/{len(urls)}] {label} TLS 校验失败({err})，降级重试（仍会校验哈希）"
@@ -1012,7 +924,7 @@ exec xvfb-run -a -s "-screen 0 1280x800x24" qq --no-sandbox --disable-gpu --disa
 
         # 3) 下载 + SHA256 校验 + 解压 NapCat.Shell.zip
         self.log_lines.append(
-            "[install] 开始下载 NapCat.Shell.zip（自动解析最新版，含 SHA256 校验）..."
+            "[install] 开始下载 NapCat.Shell.zip（固定 4.18.5 稳定版，含 SHA256 校验）..."
         )
         try:
             ok_zip = await self.download_napcat(version=version)

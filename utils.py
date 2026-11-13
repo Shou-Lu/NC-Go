@@ -17,11 +17,20 @@ from typing import Optional, Dict, Any, Set, List, Tuple
 from astrbot.api import logger
 
 PLUGIN_NAME = "pulid_napcat_go_to_astrbot"
-PLUGIN_VERSION = "7.5.1"
+PLUGIN_VERSION = "7.6.0"
 CONFIG_VERSION = 5
 
-NAPCAT_RELEASE_BASE = "https://github.com/NapNeko/NapCatQQ/releases/download"
-DEFAULT_NAPCAT_VERSION = "latest"
+# NapCat 单一稳定版本供应：不跟随上游 latest。
+# 上游新版会频繁触发 QQ 登录失效（被踢下线），因此只供应经长期验证的 4.18.5。
+NAPCAT_PINNED_VERSION = "4.18.5"
+NAPCAT_PINNED_RELEASE_TAG = f"napcat-v{NAPCAT_PINNED_VERSION}"
+NAPCAT_RELEASE_REPO = "Shou-Lu/NC-Go"
+NAPCAT_RELEASE_BASE = f"https://github.com/{NAPCAT_RELEASE_REPO}/releases/download"
+# 本仓库 release 资产 NapCat.Shell.zip 的 SHA256（发布时写入），用于完整性校验。
+NAPCAT_PINNED_SHA256 = (
+    "93fc7207e4efe94bd642bae71c1d540b9c0b676fff8b3df99643b182b0d2a62b"
+)
+DEFAULT_NAPCAT_VERSION = NAPCAT_PINNED_VERSION
 DEFAULT_DOWNLOAD_MIRROR = "https://gh.zwy.one/"
 
 NAPCAT_MIRROR_CANDIDATES = [
