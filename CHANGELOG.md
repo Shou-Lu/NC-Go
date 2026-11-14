@@ -1,3 +1,10 @@
+# 7.6.1
+1. 版本号更新为 7.6.1
+2. 修复安全提示：`webui.json` 不再写入固定默认 token，首次创建时随机生成 32 位十六进制 token；检测到旧固定值 `5503af8581de` 会自动轮换（沿用用户自己改过的 token）
+3. 收紧残留进程清理范围：不再使用 `napcat|NapCat|Xvfb|launcher.sh|/opt/QQ` 这类宽泛的 `pkill -f`，改为先按精确模式扫描 PID（限定本插件安装目录、`napcat.mjs`、插件生成的 `launcher.sh`、`/opt/QQ/`、插件 launcher 启动的 Xvfb 屏幕参数），再对命中 PID 执行 kill
+4. QQ 进程识别改为精确进程名匹配（`pgrep -x qq`），避免命令行里含 `qq` 的其他进程被误判
+5. 清理 `napcat_manager.py` 中未使用的导入
+
 # 7.6.0
 1. 版本号更新为 7.6.0
 2. NapCat 改为单一稳定版本供应：固定使用 4.18.5，不再查询上游 GitHub API，也不再提供 `latest` 选项；上游频繁发版且新版较大概率触发 QQ 登录失效（被踢下线）

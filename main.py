@@ -55,7 +55,7 @@ from .napcat_manager import NapCatManager
 from .config_syncer import ConfigSyncer
 from . import linux_tools
 
-PLUGIN_CODE_VERSION = "2026-11-14-v760"
+PLUGIN_CODE_VERSION = "2026-11-14-v761"
 
 
 class NapCatGoPlugin(Star):

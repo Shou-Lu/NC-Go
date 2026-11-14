@@ -1,6 +1,7 @@
 import os
 import re
 import ssl
+import secrets
 import json
 import time
 import base64
@@ -17,7 +18,7 @@ from typing import Optional, Dict, Any, Set, List, Tuple
 from astrbot.api import logger
 
 PLUGIN_NAME = "pulid_napcat_go_to_astrbot"
-PLUGIN_VERSION = "7.6.0"
+PLUGIN_VERSION = "7.6.1"
 CONFIG_VERSION = 5
 
 # NapCat 单一稳定版本供应：不跟随上游 latest。
@@ -79,9 +80,12 @@ DEFAULT_NAPCAT_PROTOCOL_JSON = {
 }
 
 DEFAULT_WEBUI_JSON = {
+    # host 保持全部接口：插件页面会把 WebUI 地址改写成当前访问 AstrBot 的主机名，
+    # 远程部署时需要 NapCat 监听所有接口才能打开 WebUI。
+    # token 不写固定值，由 resolve_webui_token() 在首次创建时随机生成。
     "host": "::",
     "port": 6099,
-    "token": "5503af8581de",
+    "token": "",
     "loginRate": 10,
     "autoLoginAccount": "",
     "disableWebUI": False,
@@ -156,8 +160,50 @@ DEFAULT_CONFIG = {
 }
 
 CREATE_NO_WINDOW = 0x08000000
-REMNANT_PATTERN = "napcat|NapCat|Xvfb|launcher.sh|/opt/QQ"
-REMNANT_SCAN_RE = re.compile(r"napcat|NapCat|Xvfb|launcher\.sh|/opt/QQ", re.IGNORECASE)
+
+# NapCat 残留进程识别模式：
+# 只覆盖本插件安装目录下的进程、NapCat 入口文件、插件生成的 launcher.sh、
+# NapCat 安装的 /opt/QQ 运行时，以及本插件 launcher 启动的 Xvfb（屏幕参数特征）。
+# 不使用 napcat / Xvfb 这类宽泛词，避免误杀同机其他进程。
+REMNANT_EXTRA_PATTERNS = (
+    r"napcat\.mjs",
+    r"/opt/QQ/",
+    r"(?:xvfb-run|Xvfb)[^\n]*1280x800x24",
+)
+
+# 旧版本写死过的 WebUI token，检测到会被强制轮换
+LEGACY_WEBUI_TOKEN = "5503af8581de"
+
+
+def build_remnant_pattern(*install_dirs: Optional[str]) -> str:
+    """构造残留进程匹配用的正则（用于 pgrep / 进程表扫描）。
+
+    仅覆盖传入的安装目录（插件数据目录 / 旧插件目录）以及 NapCat 入口、
+    NapCat 安装的 QQ 运行时、本插件 launcher 启动的 Xvfb。
+    """
+    parts: List[str] = []
+    for d in install_dirs:
+        if d and str(d).strip():
+            parts.append(re.escape(str(d).rstrip("/")))
+    parts.extend(REMNANT_EXTRA_PATTERNS)
+    return "|".join(parts)
+
+
+def compile_remnant_re(*install_dirs: Optional[str]) -> "re.Pattern[str]":
+    return re.compile(build_remnant_pattern(*install_dirs))
+
+
+def resolve_webui_token(existing: Optional[str] = None) -> str:
+    """返回 WebUI 访问 token：沿用已有有效值，否则随机生成。
+
+    旧版本使用固定默认 token，所有安装共用同一口令；检测到旧值会强制
+    轮换为随机 token，避免默认口令被直接利用。
+    """
+    token = (existing or "").strip()
+    if not token or token == LEGACY_WEBUI_TOKEN:
+        return secrets.token_hex(16)
+    return token
+
 
 # 从 NapCat 日志里抓 QQ 号
 QQ_LOGIN_ID_RE = re.compile(
@@ -568,7 +614,13 @@ def is_deb_build_compatible(
     return (NAPCAT_SUPPORTED_QQ_MIN <= code <= NAPCAT_SUPPORTED_QQ_MAX), v, code
 
 
-def list_pids_by_name(name: str) -> Set[int]:
+def list_pids_by_name(name: str, exact: bool = False) -> Set[int]:
+    """按进程名查询 PID。
+
+    exact=False（默认）在 Linux 下用 `pgrep -f` 匹配完整命令行，适合
+    napcat.mjs 这类入口；exact=True 用 `pgrep -x` 精确匹配进程名，
+    适合 qq 这类短名，避免误匹配命令行里带 "qq" 的其他进程。
+    """
     pids: Set[int] = set()
     if IS_WINDOWS:
         try:
@@ -592,8 +644,9 @@ def list_pids_by_name(name: str) -> Set[int]:
                     continue
     else:
         try:
+            flag = "-x" if exact else "-f"
             out = subprocess.check_output(
-                ["pgrep", "-f", name], stderr=subprocess.DEVNULL, timeout=10
+                ["pgrep", flag, name], stderr=subprocess.DEVNULL, timeout=10
             ).decode()
             for line in out.splitlines():
                 if line.strip().isdigit():

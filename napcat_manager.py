@@ -9,33 +9,28 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Dict, Optional, Set, Tuple, List
 
-import aiohttp
 
 from astrbot.api import logger
 
 from .utils import (
     IS_WINDOWS,
-    IS_LINUX,
     DEFAULT_NAPCAT_JSON,
     DEFAULT_NAPCAT_ACCOUNT_JSON,
     DEFAULT_NAPCAT_PROTOCOL_JSON,
     DEFAULT_WEBUI_JSON,
     DEFAULT_ONEBOT11_TEMPLATE,
     DEFAULT_CONFIG,
-    REMNANT_PATTERN,
-    REMNANT_SCAN_RE,
+    compile_remnant_re,
+    resolve_webui_token,
     QQ_LOGIN_ID_RE,
     CREATE_NO_WINDOW,
     resolve_persistent_dir,
-    make_ssl_context,
     list_pids_by_name,
     kill_pids,
     build_docker_run_args,
     detect_docker_binary,
     get_linux_qq_version,
     get_linux_qq_build_code,
-    is_linux_qq_version_compatible,
-    is_qq_installed,
     NAPCAT_SUPPORTED_QQ_MIN,
     NAPCAT_SUPPORTED_QQ_MAX,
     LINUX_RUNTIME_DEPS,
@@ -57,6 +52,10 @@ class NapCatManager(DownloadMixin):
         self.napcat_dir = self.persistent_dir / "napcat"
         self.legacy_napcat_dir = self.plugin_dir / "napcat"
         self.napcat_dir.mkdir(parents=True, exist_ok=True)
+        # 残留进程匹配基于本插件安装目录（含旧目录），避免误杀同机其他进程
+        self._remnant_re = compile_remnant_re(
+            str(self.napcat_dir), str(self.legacy_napcat_dir)
+        )
 
         self.deploy_mode = deploy_mode
         self.docker_data_dir = self.persistent_dir / "docker-data"
@@ -256,6 +255,8 @@ class NapCatManager(DownloadMixin):
                     pass
             if qq_number:
                 data["autoLoginAccount"] = qq_number
+            # 随机 token：沿用已有值，缺失或仍是旧固定值时轮换
+            data["token"] = resolve_webui_token(data.get("token"))
             try:
                 data["port"] = int(
                     self.plugin.config.get("napcat_port", data.get("port", 6099))
@@ -496,13 +497,15 @@ class NapCatManager(DownloadMixin):
     def _refresh_launched_pids(self):
         try:
             qq_name = "QQ.exe" if IS_WINDOWS else "qq"
-            cur = list_pids_by_name(qq_name)
+            cur = list_pids_by_name(qq_name, exact=True)
             self._launched_pids.update(cur - self._pre_existing_qq_pids)
             if IS_WINDOWS:
                 self._launched_pids.update(list_pids_by_name("NapCatWinBootMain.exe"))
             else:
-                self._launched_pids.update(list_pids_by_name("NapCat"))
-                self._launched_pids.update(list_pids_by_name("Xvfb"))
+                # 只收集明确属于本插件的残留进程（安装目录 / napcat.mjs /
+                # /opt/QQ / 本插件 launcher 起的 Xvfb）
+                for pid, _ppid, _stat, _args in self._list_remnant_pids():
+                    self._launched_pids.add(pid)
         except Exception:
             pass
 
@@ -511,13 +514,6 @@ class NapCatManager(DownloadMixin):
         if self._launched_pids:
             kill_pids(self._launched_pids)
             self._launched_pids.clear()
-
-    def _sudo_pkill(self, pattern: str, sig: str = "KILL", pw: str = "") -> None:
-        if IS_WINDOWS or not pw or not shutil.which("sudo"):
-            return
-        linux_tools.run_sudo_sync(
-            self.plugin, ["pkill", f"-{sig}", "-f", pattern], pw, timeout=15
-        )
 
     def _sudo_kill_pids(self, pids: List[int], sig: str = "KILL", pw: str = "") -> None:
         if IS_WINDOWS or not pw or not shutil.which("sudo") or not pids:
@@ -562,7 +558,7 @@ class NapCatManager(DownloadMixin):
                 continue
             if "grep" in args or args.startswith("ps ") or " ps -eo" in args:
                 continue
-            if REMNANT_SCAN_RE.search(args):
+            if self._remnant_re.search(args):
                 out.append((pid, ppid, stat, args))
         return out
 
@@ -572,12 +568,14 @@ class NapCatManager(DownloadMixin):
         if not pw or not shutil.which("sudo"):
             return
 
-        self.log_lines.append("[stop] 开始清理所有 NapCat/QQ/Xvfb 残留进程 ...")
+        self.log_lines.append(
+            "[stop] 开始清理本插件安装目录下的 NapCat/QQ/Xvfb 残留进程 ..."
+        )
 
         for attempt in range(1, 4):
-            self._sudo_pkill(REMNANT_PATTERN, "KILL", pw)
-            time.sleep(1.0)
-
+            # 按 PID 精确清理：先扫描（模式限定在本插件安装目录 / napcat.mjs /
+            # /opt/QQ / 本插件的 Xvfb），再对命中的 PID 发 kill，
+            # 不使用宽泛的 pkill -f，避免误杀同机其他进程。
             rems = self._list_remnant_pids()
             if not rems:
                 self.log_lines.append(f"[stop] ✔残留进程已清理干净（第 {attempt} 轮）")
@@ -587,7 +585,7 @@ class NapCatManager(DownloadMixin):
             zombies = [(p, pp, st, ar) for (p, pp, st, ar) in rems if "Z" in st]
 
             self.log_lines.append(
-                f"[stop] ⚠ 第 {attempt}/3 轮仍有残留："
+                f"[stop] 第 {attempt}/3 轮清理："
                 f"活进程 {[p for p, _, _, _ in alive]}，"
                 f"僵尸 {[p for p, _, _, _ in zombies]}"
             )
@@ -794,7 +792,7 @@ class NapCatManager(DownloadMixin):
                 return True
 
             qq_name = "QQ.exe" if IS_WINDOWS else "qq"
-            self._pre_existing_qq_pids = list_pids_by_name(qq_name)
+            self._pre_existing_qq_pids = list_pids_by_name(qq_name, exact=True)
             self._launched_pids.clear()
             qq_number = str(self.plugin.config.get("qq_number", "") or "").strip()
 
